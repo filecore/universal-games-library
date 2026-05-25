@@ -58,6 +58,19 @@
             <button type="button" id="enrich-bgg-images">Enrich BGG covers</button>
 
             <details>
+                <summary>Browser scraper (BGG covers)</summary>
+                <p class="hint">BGG's API is currently blocking server-side requests, but your browser works. Run this on a boardgamegeek.com tab to download a CSV with cover URLs, then upload it via Manual import below (Store: BGG).</p>
+                <ol class="hint">
+                    <li>Open <a href="https://boardgamegeek.com" target="_blank" rel="noopener">boardgamegeek.com</a></li>
+                    <li>Open DevTools console (F12)</li>
+                    <li>Paste the snippet below and press Enter</li>
+                    <li>Upload the downloaded <code>bgg-images.csv</code> via Manual import</li>
+                </ol>
+                <button type="button" id="copy-snippet">Copy snippet</button>
+                <textarea id="snippet-source" readonly rows="3" spellcheck="false"></textarea>
+            </details>
+
+            <details>
                 <summary>Manual import</summary>
                 <form id="manual-form">
                     <label>Store:

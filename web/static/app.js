@@ -314,6 +314,30 @@ document.getElementById("filters-toggle").addEventListener("click", openFilters)
 document.getElementById("filters-close").addEventListener("click", closeFilters);
 document.getElementById("filters-backdrop").addEventListener("click", closeFilters);
 
+async function loadSnippet() {
+    try {
+        const r = await fetch("/static/bgg-scrape.js");
+        const code = await r.text();
+        const minified = `javascript:${encodeURIComponent(code)}`;
+        const ta = document.getElementById("snippet-source");
+        if (ta) ta.value = code.trim();
+    } catch {}
+}
+
+document.getElementById("copy-snippet").addEventListener("click", async () => {
+    const ta = document.getElementById("snippet-source");
+    ta.select();
+    try {
+        await navigator.clipboard.writeText(ta.value);
+        const s = document.getElementById("ingest-status");
+        s.textContent = "Snippet copied. Paste into BGG DevTools console.";
+    } catch {
+        document.execCommand("copy");
+    }
+});
+
+loadSnippet();
+
 (async () => {
     await loadMe();
     await loadGames();

@@ -194,6 +194,37 @@ main#games {
     min-height: 1.2em;
 }
 
+aside#filters details .hint {
+    font-size: 0.75rem;
+    color: #aaa;
+    margin: 0.4rem 0;
+    line-height: 1.4;
+}
+aside#filters details ol.hint {
+    padding-left: 1.2rem;
+    margin: 0.4rem 0;
+}
+aside#filters details ol.hint li { margin: 0.15rem 0; }
+aside#filters details code {
+    background: #333;
+    padding: 0.05rem 0.25rem;
+    border-radius: 2px;
+    font-size: 0.7rem;
+}
+aside#filters details a { color: #4fa3e0; }
+aside#filters details textarea {
+    width: 100%;
+    margin-top: 0.4rem;
+    padding: 0.3rem;
+    background: #111;
+    color: #ddd;
+    border: 1px solid #333;
+    border-radius: 3px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.65rem;
+    resize: vertical;
+}
+
 .modal-overlay {
     display: none;
     position: fixed;

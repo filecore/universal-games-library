@@ -32,20 +32,38 @@ def _int_or_none(v):
 
 def _bgg_find_or_create(session, row: dict):
     """Resolve a BGG CSV row to a canonical Game without calling IGDB
-    (boardgames aren't in IGDB)."""
+    (boardgames aren't in IGDB). For existing games, opportunistically
+    backfill missing fields (cover_url, player counts) when the row
+    carries them. Returns (game, was_enriched_bool)."""
     title = (row.get("objectname") or row.get("title") or row.get("name") or "").strip()
     if not title:
-        return None
+        return None, False
     year = _int_or_none(row.get("yearpublished") or row.get("year"))
     pmin = _int_or_none(row.get("minplayers"))
     pmax = _int_or_none(row.get("maxplayers"))
+    cover = (row.get("image") or row.get("thumbnail") or "").strip() or None
+
     existing = (
         session.query(Game)
         .filter(Game.title_normalised == normalise_title(title))
         .first()
     )
     if existing:
-        return existing
+        enriched = False
+        if cover and not existing.cover_url:
+            existing.cover_url = cover
+            enriched = True
+        if pmin and (not existing.player_count_min or existing.player_count_min == 1):
+            existing.player_count_min = pmin
+            enriched = True
+        if pmax and (not existing.player_count_max or existing.player_count_max < pmax):
+            existing.player_count_max = pmax
+            enriched = True
+        if year and not existing.release_year:
+            existing.release_year = year
+            enriched = True
+        return existing, enriched
+
     game = Game(
         title=title,
         title_normalised=normalise_title(title),
@@ -55,10 +73,11 @@ def _bgg_find_or_create(session, row: dict):
         has_local_coop=False,
         has_local_vs=(pmax or 1) > 1,
         tags=["boardgame"],
+        cover_url=cover,
     )
     session.add(game)
     session.flush()
-    return game
+    return game, True
 
 
 def run(store: str, filename: str, content: bytes):
@@ -79,7 +98,7 @@ def run(store: str, filename: str, content: bytes):
         reader = csv.DictReader(io.StringIO(text))
         rows = list(reader)
 
-    added, existing_count, skipped = 0, 0, 0
+    added, existing_count, skipped, enriched = 0, 0, 0, 0
     with get_session() as s:
         for row in rows:
             if not isinstance(row, dict):
@@ -90,12 +109,12 @@ def run(store: str, filename: str, content: bytes):
                 if (row.get("own") or "").strip() == "0":
                     skipped += 1
                     continue
-                if (row.get("itemtype") or "").strip().lower() == "expansion":
-                    pass
-                game = _bgg_find_or_create(s, row)
+                game, was_enriched = _bgg_find_or_create(s, row)
                 if game is None:
                     skipped += 1
                     continue
+                if was_enriched:
+                    enriched += 1
                 external_id = (
                     str(row.get("objectid") or row.get("external_id") or row.get("id") or "").strip()
                     or None
@@ -140,11 +159,12 @@ def run(store: str, filename: str, content: bytes):
             )
             added += 1
 
-    return _record(
-        f"manual:{store}",
-        True,
-        f"{store}: {added} new, {existing_count} existing, {skipped} skipped",
-    )
+    parts = [f"{added} new", f"{existing_count} existing"]
+    if enriched:
+        parts.append(f"{enriched} enriched")
+    if skipped:
+        parts.append(f"{skipped} skipped")
+    return _record(f"manual:{store}", True, f"{store}: " + ", ".join(parts))
 
 
 def _record(source: str, success: bool, message: str):
