@@ -27,7 +27,9 @@ function renderAuthArea() {
 }
 
 function openLoginModal() {
-    document.getElementById("login-modal").hidden = false;
+    const modal = document.getElementById("login-modal");
+    modal.classList.add("open");
+    modal.hidden = false;
     document.getElementById("login-error").hidden = true;
     document.getElementById("login-username").value = "";
     document.getElementById("login-password").value = "";
@@ -35,7 +37,19 @@ function openLoginModal() {
 }
 
 function closeLoginModal() {
-    document.getElementById("login-modal").hidden = true;
+    const modal = document.getElementById("login-modal");
+    modal.classList.remove("open");
+    modal.hidden = true;
+}
+
+function openFilters() {
+    document.getElementById("filters").classList.add("open");
+    document.getElementById("filters-backdrop").classList.add("open");
+}
+
+function closeFilters() {
+    document.getElementById("filters").classList.remove("open");
+    document.getElementById("filters-backdrop").classList.remove("open");
 }
 
 async function logout() {
@@ -295,6 +309,10 @@ document.getElementById("manual-form").addEventListener("submit", async (ev) => 
 ["input", "change"].forEach((ev) => {
     document.getElementById("filters").addEventListener(ev, render);
 });
+
+document.getElementById("filters-toggle").addEventListener("click", openFilters);
+document.getElementById("filters-close").addEventListener("click", closeFilters);
+document.getElementById("filters-backdrop").addEventListener("click", closeFilters);
 
 (async () => {
     await loadMe();

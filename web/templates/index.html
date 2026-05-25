@@ -8,16 +8,20 @@
 </head>
 <body>
     <header>
-        <h1>Universal Games Library</h1>
+        <h1>Games</h1>
         <div class="header-right">
             <span id="stats"></span>
+            <button type="button" id="filters-toggle">Filters</button>
             <span id="auth-area">
                 <button type="button" id="login-btn" class="link-btn">Log in</button>
             </span>
         </div>
     </header>
 
+    <div id="filters-backdrop" class="filters-backdrop"></div>
+
     <aside id="filters">
+        <button type="button" id="filters-close" class="close-btn">Close</button>
         <h2>Search</h2>
         <input type="text" id="f-search" placeholder="Title contains...">
 
