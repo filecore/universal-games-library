@@ -5,47 +5,38 @@
     }
     const username = prompt("BGG username:", "filecore");
     if (!username) return;
-    const cr = await fetch(`/xmlapi2/collection?username=${username}&own=1`);
-    if (!cr.ok) {
-        alert("Collection fetch failed: HTTP " + cr.status);
+
+    // BGG's collection endpoint already returns <image>, <thumbnail>, and
+    // <stats minplayers maxplayers ...> per item when stats=1 is set.
+    // The /thing endpoint is currently 401 even in browser context, so we
+    // rely entirely on this one call.
+    const r = await fetch(
+        `/xmlapi2/collection?username=${encodeURIComponent(username)}&own=1&stats=1`,
+    );
+    if (!r.ok) {
+        alert(`Collection fetch failed: HTTP ${r.status}`);
         return;
     }
-    const cxml = new DOMParser().parseFromString(await cr.text(), "text/xml");
-    const ids = [...cxml.querySelectorAll("item")]
-        .map((i) => i.getAttribute("objectid"))
-        .filter(Boolean);
-    if (!ids.length) {
+    const xml = new DOMParser().parseFromString(await r.text(), "text/xml");
+    const items = [...xml.querySelectorAll("item")];
+    if (!items.length) {
         alert("No owned items found.");
         return;
     }
-    console.log(`Found ${ids.length} games. Fetching images in batches...`);
+    console.log(`Found ${items.length} items. Building CSV...`);
 
-    const rows = [];
-    const BATCH = 20;
-    for (let i = 0; i < ids.length; i += BATCH) {
-        const batch = ids.slice(i, i + BATCH);
-        const tr = await fetch(`/xmlapi2/thing?id=${batch.join(",")}`);
-        if (!tr.ok) {
-            console.warn(`Batch starting ${i} failed: ${tr.status}`);
-            await new Promise((r) => setTimeout(r, 2000));
-            continue;
-        }
-        const xml = new DOMParser().parseFromString(await tr.text(), "text/xml");
-        for (const item of xml.querySelectorAll("item")) {
-            const namePrim = item.querySelector('name[type="primary"]');
-            rows.push({
-                objectid: item.getAttribute("id"),
-                objectname: namePrim ? namePrim.getAttribute("value") : "",
-                image: item.querySelector("image")?.textContent || "",
-                thumbnail: item.querySelector("thumbnail")?.textContent || "",
-                minplayers: item.querySelector("minplayers")?.getAttribute("value") || "",
-                maxplayers: item.querySelector("maxplayers")?.getAttribute("value") || "",
-                yearpublished: item.querySelector("yearpublished")?.getAttribute("value") || "",
-            });
-        }
-        console.log(`Progress: ${Math.min(i + BATCH, ids.length)} / ${ids.length}`);
-        await new Promise((r) => setTimeout(r, 1500));
-    }
+    const rows = items.map((item) => {
+        const stats = item.querySelector("stats");
+        return {
+            objectid: item.getAttribute("objectid") || "",
+            objectname: item.querySelector("name")?.textContent || "",
+            image: item.querySelector("image")?.textContent || "",
+            thumbnail: item.querySelector("thumbnail")?.textContent || "",
+            minplayers: stats?.getAttribute("minplayers") || "",
+            maxplayers: stats?.getAttribute("maxplayers") || "",
+            yearpublished: item.querySelector("yearpublished")?.textContent || "",
+        };
+    });
 
     const headers = [
         "objectid",
@@ -58,9 +49,10 @@
     ];
     const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
     const csv = [headers.join(",")]
-        .concat(rows.map((r) => headers.map((h) => esc(r[h] || "")).join(",")))
+        .concat(rows.map((row) => headers.map((h) => esc(row[h] || "")).join(",")))
         .join("\n");
 
+    const withImage = rows.filter((r) => r.image || r.thumbnail).length;
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -68,5 +60,7 @@
     document.body.appendChild(a);
     a.click();
     a.remove();
-    alert(`Downloaded ${rows.length} entries to bgg-images.csv`);
+    alert(
+        `Downloaded ${rows.length} entries (${withImage} with image URLs) to bgg-images.csv`,
+    );
 })();
