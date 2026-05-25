@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -21,6 +22,8 @@ if not SESSION_SECRET:
     raise RuntimeError(
         "SESSION_SECRET is not set. Generate one with `openssl rand -hex 32`."
     )
+
+BUILD_ID = str(int(time.time()))
 
 
 @asynccontextmanager
@@ -55,7 +58,12 @@ def healthz():
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    response = templates.TemplateResponse(
+        "index.html",
+        {"request": request, "build_id": BUILD_ID},
+    )
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
 
 
 @app.get("/api/me")
