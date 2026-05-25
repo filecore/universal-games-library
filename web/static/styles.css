@@ -1,3 +1,5 @@
+:root { --topbar-h: 50px; }
+
 * { box-sizing: border-box; }
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -6,19 +8,29 @@ body {
     color: #eee;
 }
 header {
-    padding: 1rem 1.5rem;
+    height: var(--topbar-h);
+    padding: 0 1.25rem;
     border-bottom: 1px solid #333;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     position: sticky;
     top: 0;
     background: #1a1a1a;
-    z-index: 10;
+    z-index: 60;
 }
-header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; }
-.header-right { display: flex; align-items: baseline; gap: 1rem; }
-#stats { color: #999; font-size: 0.85rem; }
+header h1 { font-size: 1.1rem; margin: 0; font-weight: 600; flex-shrink: 0; }
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.header-right::-webkit-scrollbar { display: none; }
+#stats { color: #999; font-size: 0.85rem; white-space: nowrap; }
 .link-btn {
     background: none;
     border: none;
@@ -31,11 +43,11 @@ header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; }
 
 aside#filters {
     position: fixed;
-    top: 3.5rem;
+    top: var(--topbar-h);
     left: 0;
     width: 240px;
     padding: 0.75rem 1rem;
-    height: calc(100vh - 3.5rem);
+    height: calc(100vh - var(--topbar-h));
     overflow-y: auto;
     border-right: 1px solid #333;
     background: #1a1a1a;
@@ -269,16 +281,18 @@ main#games {
 }
 
 @media (max-width: 768px) {
-    header { padding: 0.6rem 0.8rem; gap: 0.5rem; }
-    header h1 { font-size: 1rem; }
-    .header-right { gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+    :root { --topbar-h: 46px; }
+
+    header { padding: 0 0.75rem; gap: 0.5rem; }
+    header h1 { font-size: 0.95rem; }
+    .header-right { gap: 0.6rem; }
     #stats { font-size: 0.75rem; }
     #filters-toggle { display: inline-block; }
 
     aside#filters {
-        top: 0;
-        height: 100vh;
-        width: 80vw;
+        top: var(--topbar-h);
+        height: calc(100vh - var(--topbar-h));
+        width: 84vw;
         max-width: 320px;
         z-index: 50;
         transform: translateX(-100%);
@@ -313,11 +327,19 @@ main#games {
     .filters-backdrop {
         display: none;
         position: fixed;
-        inset: 0;
+        top: var(--topbar-h);
+        left: 0;
+        right: 0;
+        bottom: 0;
         background: rgba(0, 0, 0, 0.5);
         z-index: 40;
     }
     .filters-backdrop.open { display: block; }
+}
+
+@media (max-width: 360px) {
+    #stats { display: none; }
+    header h1 { font-size: 0.9rem; }
 }
 
 @media (min-width: 769px) {
