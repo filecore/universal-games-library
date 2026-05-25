@@ -1,0 +1,19 @@
+services:
+  app:
+    networks:
+      - default
+      - reverse-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.games.rule=Host(`${PUBLIC_HOST}`)"
+      - "traefik.http.routers.games.entrypoints=websecure"
+      - "traefik.http.routers.games.tls=true"
+      - "traefik.http.routers.games.tls.certresolver=cloudflare"
+      - "traefik.http.services.games.loadbalancer.server.port=8000"
+      - "kuma.games.http.name=Universal Games Library"
+      - "kuma.games.http.url=https://${PUBLIC_HOST}/healthz"
+
+networks:
+  reverse-proxy:
+    external: true
+  default:

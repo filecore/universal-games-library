@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Universal Games Library</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Universal Games Library</h1>
+        <div id="stats"></div>
+    </header>
+
+    <aside id="filters">
+        <h2>Search</h2>
+        <input type="text" id="f-search" placeholder="Title contains...">
+
+        <h2>Store</h2>
+        <div id="f-store"></div>
+
+        <h2>Platform</h2>
+        <div id="f-platform"></div>
+
+        <h2>Type</h2>
+        <label><input type="checkbox" id="f-digital"> Digital</label>
+        <label><input type="checkbox" id="f-physical"> Physical</label>
+
+        <h2>Player count</h2>
+        <label>Min: <input type="number" id="f-pmin" min="1"></label>
+        <label>Max: <input type="number" id="f-pmax" min="1"></label>
+
+        <h2>Multiplayer</h2>
+        <label><input type="checkbox" id="f-local-coop"> Local coop</label>
+        <label><input type="checkbox" id="f-online-coop"> Online coop</label>
+        <label><input type="checkbox" id="f-local-vs"> Local vs</label>
+        <label><input type="checkbox" id="f-online-vs"> Online vs</label>
+
+        <h2>Genres</h2>
+        <div id="f-genre"></div>
+
+        <h2>Refresh</h2>
+        <button type="button" id="run-steam">Steam</button>
+        <button type="button" id="run-bgg">BGG</button>
+
+        <details>
+            <summary>Manual import</summary>
+            <form id="manual-form">
+                <label>Store:
+                    <select name="store" required>
+                        <option value="psn">PSN</option>
+                        <option value="epic">Epic</option>
+                        <option value="ubisoft">Ubisoft</option>
+                        <option value="blizzard">Blizzard</option>
+                        <option value="steam">Steam</option>
+                        <option value="bgg">BGG</option>
+                    </select>
+                </label>
+                <input type="file" name="file" accept=".csv,.json" required>
+                <button type="submit">Upload</button>
+            </form>
+        </details>
+
+        <div id="ingest-status"></div>
+    </aside>
+
+    <main id="games"></main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
