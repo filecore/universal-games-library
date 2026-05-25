@@ -184,6 +184,24 @@ async function ingest(source) {
 document.getElementById("run-steam").addEventListener("click", () => ingest("steam"));
 document.getElementById("run-bgg").addEventListener("click", () => ingest("bgg"));
 
+document.getElementById("enrich-bgg-images").addEventListener("click", async () => {
+    if (!maybePromptForToken()) return;
+    const s = document.getElementById("ingest-status");
+    s.textContent = "Enriching BGG covers...";
+    const r = await fetch("/api/enrich/bgg-images", {
+        method: "POST",
+        headers: ingestHeaders(),
+    });
+    if (r.status === 401) {
+        localStorage.removeItem("ingestToken");
+        s.textContent = "Ingest token rejected.";
+        return;
+    }
+    const result = await r.json();
+    s.textContent = result.message;
+    if (result.success) await loadGames();
+});
+
 document.getElementById("manual-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     if (!maybePromptForToken()) return;

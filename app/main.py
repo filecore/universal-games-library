@@ -91,6 +91,12 @@ def ingest_bgg(x_ingest_token: str | None = Header(default=None)):
     return bgg.run()
 
 
+@app.post("/api/enrich/bgg-images")
+def enrich_bgg_images(x_ingest_token: str | None = Header(default=None)):
+    require_ingest_token(x_ingest_token)
+    return bgg.enrich_images()
+
+
 @app.post("/api/ingest/manual")
 async def ingest_manual(
     store: str,
