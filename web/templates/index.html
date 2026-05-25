@@ -9,7 +9,12 @@
 <body>
     <header>
         <h1>Universal Games Library</h1>
-        <div id="stats"></div>
+        <div class="header-right">
+            <span id="stats"></span>
+            <span id="auth-area">
+                <button type="button" id="login-btn" class="link-btn">Log in</button>
+            </span>
+        </div>
     </header>
 
     <aside id="filters">
@@ -39,33 +44,56 @@
         <h2>Genres</h2>
         <div id="f-genre"></div>
 
-        <h2>Refresh</h2>
-        <button type="button" id="run-steam">Steam</button>
-        <button type="button" id="run-bgg">BGG (API)</button>
-        <button type="button" id="enrich-bgg-images">Enrich BGG covers</button>
+        <section id="management" hidden>
+            <h2>Status</h2>
+            <div id="status-block"></div>
 
-        <details>
-            <summary>Manual import</summary>
-            <form id="manual-form">
-                <label>Store:
-                    <select name="store" required>
-                        <option value="psn">PSN</option>
-                        <option value="epic">Epic</option>
-                        <option value="ubisoft">Ubisoft</option>
-                        <option value="blizzard">Blizzard</option>
-                        <option value="steam">Steam</option>
-                        <option value="bgg">BGG</option>
-                    </select>
-                </label>
-                <input type="file" name="file" accept=".csv,.json" required>
-                <button type="submit">Upload</button>
-            </form>
-        </details>
+            <h2>Refresh</h2>
+            <button type="button" id="run-steam">Steam</button>
+            <button type="button" id="run-bgg">BGG (API)</button>
+            <button type="button" id="enrich-bgg-images">Enrich BGG covers</button>
 
-        <div id="ingest-status"></div>
+            <details>
+                <summary>Manual import</summary>
+                <form id="manual-form">
+                    <label>Store:
+                        <select name="store" required>
+                            <option value="bgg">BGG</option>
+                            <option value="psn">PSN</option>
+                            <option value="epic">Epic</option>
+                            <option value="ubisoft">Ubisoft</option>
+                            <option value="blizzard">Blizzard</option>
+                            <option value="steam">Steam</option>
+                        </select>
+                    </label>
+                    <input type="file" name="file" accept=".csv,.json" required>
+                    <button type="submit">Upload</button>
+                </form>
+            </details>
+
+            <div id="ingest-status"></div>
+        </section>
     </aside>
 
     <main id="games"></main>
+
+    <div id="login-modal" class="modal-overlay" hidden>
+        <div class="modal-card">
+            <h2>Sign in</h2>
+            <p class="sub">Required to manage library content.</p>
+            <form id="login-form">
+                <label for="login-username">Username</label>
+                <input id="login-username" name="username" type="text" autocomplete="username" autofocus required>
+                <label for="login-password">Password</label>
+                <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+                <div id="login-error" class="error" hidden></div>
+                <div class="row">
+                    <button type="button" id="login-cancel" class="ghost">Cancel</button>
+                    <button type="submit">Sign in</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="/static/app.js"></script>
 </body>

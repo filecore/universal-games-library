@@ -17,7 +17,17 @@ header {
     z-index: 10;
 }
 header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; }
+.header-right { display: flex; align-items: baseline; gap: 1rem; }
 #stats { color: #999; font-size: 0.85rem; }
+.link-btn {
+    background: none;
+    border: none;
+    color: #4fa3e0;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0;
+}
+.link-btn:hover { color: #6fbff5; text-decoration: underline; }
 
 aside#filters {
     position: fixed;
@@ -78,6 +88,37 @@ aside#filters details input[type="file"] {
     font-size: 0.75rem;
     margin: 0.4rem 0;
 }
+
+#status-block {
+    font-size: 0.8rem;
+    color: #bbb;
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.5rem;
+}
+#status-block .stat-row { display: flex; justify-content: space-between; margin: 0.1rem 0; }
+#status-block .stat-row b { color: #eee; font-weight: 500; }
+#status-block .progress-bar {
+    background: #333;
+    border-radius: 2px;
+    height: 6px;
+    margin: 0.3rem 0 0.4rem;
+    overflow: hidden;
+}
+#status-block .progress-fill {
+    background: #4fa3e0;
+    height: 100%;
+    transition: width 0.3s;
+}
+#status-block .last-run {
+    margin-top: 0.4rem;
+    font-size: 0.72rem;
+    color: #888;
+}
+#status-block .last-run .fail { color: #e88; }
+#status-block .last-run .ok { color: #8e8; }
 
 main#games {
     margin-left: 270px;
@@ -140,3 +181,77 @@ main#games {
     margin-top: 0.5rem;
     min-height: 1.2em;
 }
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+.modal-card {
+    background: #16213e;
+    border-radius: 12px;
+    padding: 36px 32px;
+    width: 320px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    color: #eee;
+}
+.modal-card h2 {
+    font-size: 1.3rem;
+    margin: 0 0 4px;
+    color: #f0c060;
+    font-weight: 600;
+}
+.modal-card .sub { font-size: 0.85rem; color: #888; margin-bottom: 20px; }
+.modal-card label {
+    display: block;
+    font-size: 0.8rem;
+    color: #aaa;
+    margin: 14px 0 4px;
+}
+.modal-card input[type="text"],
+.modal-card input[type="password"] {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background: #0f3460;
+    color: #eee;
+    font-size: 0.95rem;
+    outline: none;
+}
+.modal-card input:focus { border-color: #f0c060; }
+.modal-card .error {
+    background: #5c1a1a;
+    color: #f88;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    margin-top: 16px;
+}
+.modal-card .row {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 22px;
+}
+.modal-card button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: #f0c060;
+    color: #1a1a2e;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.modal-card button:hover { background: #f5d080; }
+.modal-card button.ghost {
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #444;
+}
+.modal-card button.ghost:hover { background: #222; color: #eee; }

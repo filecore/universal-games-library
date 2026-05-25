@@ -2,22 +2,46 @@ let games = [];
 let allStores = new Set();
 let allPlatforms = new Set();
 let allGenres = new Set();
-let ingestProtected = false;
+let currentUser = null;
 
-function ingestHeaders() {
-    if (!ingestProtected) return {};
-    const t = localStorage.getItem("ingestToken") || "";
-    return t ? { "X-Ingest-Token": t } : {};
+async function loadMe() {
+    const r = await fetch("/api/me");
+    const j = await r.json();
+    currentUser = j.user || null;
+    renderAuthArea();
 }
 
-async function loadConfig() {
-    try {
-        const r = await fetch("/api/config");
-        const c = await r.json();
-        ingestProtected = !!c.ingest_protected;
-    } catch {
-        ingestProtected = false;
+function renderAuthArea() {
+    const area = document.getElementById("auth-area");
+    const mgmt = document.getElementById("management");
+    if (currentUser) {
+        area.innerHTML = `Logged in as <b>${escapeHtml(currentUser)}</b> <button type="button" id="logout-btn" class="link-btn">Log out</button>`;
+        document.getElementById("logout-btn").addEventListener("click", logout);
+        mgmt.hidden = false;
+        loadStatus();
+    } else {
+        area.innerHTML = `<button type="button" id="login-btn" class="link-btn">Log in</button>`;
+        document.getElementById("login-btn").addEventListener("click", openLoginModal);
+        mgmt.hidden = true;
     }
+}
+
+function openLoginModal() {
+    document.getElementById("login-modal").hidden = false;
+    document.getElementById("login-error").hidden = true;
+    document.getElementById("login-username").value = "";
+    document.getElementById("login-password").value = "";
+    document.getElementById("login-username").focus();
+}
+
+function closeLoginModal() {
+    document.getElementById("login-modal").hidden = true;
+}
+
+async function logout() {
+    await fetch("/api/logout", { method: "POST" });
+    currentUser = null;
+    renderAuthArea();
 }
 
 async function loadGames() {
@@ -35,6 +59,26 @@ async function loadGames() {
     }
     buildFacets();
     render();
+}
+
+async function loadStatus() {
+    const r = await fetch("/api/status");
+    if (!r.ok) return;
+    const s = await r.json();
+    const block = document.getElementById("status-block");
+    const bgg = s.bgg;
+    const steam = s.steam;
+    const pct = bgg.owned > 0 ? Math.round((bgg.with_cover / bgg.owned) * 100) : 0;
+    const lastEnrich = bgg.last_enrich
+        ? `<div class="last-run ${bgg.last_enrich.success ? "ok" : "fail"}">Last enrich: ${escapeHtml(bgg.last_enrich.message || "")}</div>`
+        : `<div class="last-run">Never enriched</div>`;
+    block.innerHTML = `
+        <div class="stat-row"><span>Steam owned</span><b>${steam.owned}</b></div>
+        <div class="stat-row"><span>BGG owned</span><b>${bgg.owned}</b></div>
+        <div class="stat-row"><span>BGG with covers</span><b>${bgg.with_cover} / ${bgg.owned}</b></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        ${lastEnrich}
+    `;
 }
 
 function buildFacets() {
@@ -110,7 +154,7 @@ function matches(g, f) {
 }
 
 function escapeHtml(s) {
-    return (s || "").replace(/[&<>"']/g, (c) =>
+    return (s || "").toString().replace(/[&<>"']/g, (c) =>
         ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]),
     );
 }
@@ -152,65 +196,78 @@ function render() {
         `${filtered.length} / ${games.length} games`;
 }
 
-function maybePromptForToken() {
-    if (!ingestProtected) return true;
-    let t = localStorage.getItem("ingestToken");
-    if (!t) {
-        t = prompt("Enter ingest token (set via INGEST_TOKEN in .env):") || "";
-        if (!t) return false;
-        localStorage.setItem("ingestToken", t);
-    }
-    return true;
-}
-
 async function ingest(source) {
-    if (!maybePromptForToken()) return;
     const s = document.getElementById("ingest-status");
     s.textContent = `Running ${source}...`;
-    const r = await fetch(`/api/ingest/${source}`, {
-        method: "POST",
-        headers: ingestHeaders(),
-    });
+    const r = await fetch(`/api/ingest/${source}`, { method: "POST" });
     if (r.status === 401) {
-        localStorage.removeItem("ingestToken");
-        s.textContent = "Ingest token rejected.";
+        s.textContent = "Session expired. Please log in again.";
+        currentUser = null;
+        renderAuthArea();
         return;
     }
     const result = await r.json();
     s.textContent = result.message;
+    if (result.success) {
+        await loadGames();
+        await loadStatus();
+    }
+}
+
+async function enrichBggImages() {
+    const s = document.getElementById("ingest-status");
+    s.textContent = "Enriching BGG covers...";
+    const r = await fetch("/api/enrich/bgg-images", { method: "POST" });
+    if (r.status === 401) {
+        s.textContent = "Session expired. Please log in again.";
+        currentUser = null;
+        renderAuthArea();
+        return;
+    }
+    const result = await r.json();
+    s.textContent = result.message;
+    await loadStatus();
     if (result.success) await loadGames();
 }
 
-document.getElementById("run-steam").addEventListener("click", () => ingest("steam"));
-document.getElementById("run-bgg").addEventListener("click", () => ingest("bgg"));
-
-document.getElementById("enrich-bgg-images").addEventListener("click", async () => {
-    if (!maybePromptForToken()) return;
-    const s = document.getElementById("ingest-status");
-    s.textContent = "Enriching BGG covers...";
-    const r = await fetch("/api/enrich/bgg-images", {
-        method: "POST",
-        headers: ingestHeaders(),
-    });
-    if (r.status === 401) {
-        localStorage.removeItem("ingestToken");
-        s.textContent = "Ingest token rejected.";
+document.getElementById("login-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target);
+    const r = await fetch("/api/login", { method: "POST", body: fd });
+    if (!r.ok) {
+        const err = document.getElementById("login-error");
+        err.textContent = "Incorrect username or password.";
+        err.hidden = false;
         return;
     }
-    const result = await r.json();
-    s.textContent = result.message;
-    if (result.success) await loadGames();
+    const j = await r.json();
+    currentUser = j.user;
+    closeLoginModal();
+    renderAuthArea();
 });
+
+document.getElementById("login-cancel").addEventListener("click", closeLoginModal);
+document.getElementById("login-modal").addEventListener("click", (ev) => {
+    if (ev.target.id === "login-modal") closeLoginModal();
+});
+document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !document.getElementById("login-modal").hidden) {
+        closeLoginModal();
+    }
+});
+
+// Management buttons (only active when logged in; section is hidden otherwise)
+document.getElementById("run-steam").addEventListener("click", () => ingest("steam"));
+document.getElementById("run-bgg").addEventListener("click", () => ingest("bgg"));
+document.getElementById("enrich-bgg-images").addEventListener("click", enrichBggImages);
 
 document.getElementById("manual-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    if (!maybePromptForToken()) return;
     const fd = new FormData(ev.target);
     const store = fd.get("store");
     const file = fd.get("file");
     if (!file || !file.name) {
-        document.getElementById("ingest-status").textContent =
-            "Choose a file first.";
+        document.getElementById("ingest-status").textContent = "Choose a file first.";
         return;
     }
     const upload = new FormData();
@@ -219,16 +276,20 @@ document.getElementById("manual-form").addEventListener("submit", async (ev) => 
     s.textContent = `Uploading ${file.name}...`;
     const r = await fetch(
         `/api/ingest/manual?store=${encodeURIComponent(store)}`,
-        { method: "POST", body: upload, headers: ingestHeaders() },
+        { method: "POST", body: upload },
     );
     if (r.status === 401) {
-        localStorage.removeItem("ingestToken");
-        s.textContent = "Ingest token rejected.";
+        s.textContent = "Session expired. Please log in again.";
+        currentUser = null;
+        renderAuthArea();
         return;
     }
     const result = await r.json();
     s.textContent = result.message;
-    if (result.success) await loadGames();
+    if (result.success) {
+        await loadGames();
+        await loadStatus();
+    }
 });
 
 ["input", "change"].forEach((ev) => {
@@ -236,6 +297,6 @@ document.getElementById("manual-form").addEventListener("submit", async (ev) => 
 });
 
 (async () => {
-    await loadConfig();
+    await loadMe();
     await loadGames();
 })();
