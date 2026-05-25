@@ -316,9 +316,10 @@ document.getElementById("filters-backdrop").addEventListener("click", closeFilte
 
 async function loadSnippet() {
     try {
-        const r = await fetch("/static/bgg-scrape.js");
+        const r = await fetch("/static/bgg-scrape.js?t=" + Date.now(), {
+            cache: "no-cache",
+        });
         const code = await r.text();
-        const minified = `javascript:${encodeURIComponent(code)}`;
         const ta = document.getElementById("snippet-source");
         if (ta) ta.value = code.trim();
     } catch {}
