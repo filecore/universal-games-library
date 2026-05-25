@@ -124,9 +124,20 @@ def list_games():
 
 @app.get("/api/status")
 def status():
+    from sqlalchemy import cast
+    from sqlalchemy.dialects.postgresql import JSONB
     with get_session() as s:
         bgg_owned = (
             s.query(Ownership).filter(Ownership.store == "bgg").count()
+        )
+        bgg_expansions = (
+            s.query(Ownership)
+            .join(Game, Ownership.game_id == Game.id)
+            .filter(
+                Ownership.store == "bgg",
+                Game.tags.cast(JSONB).contains(cast(["expansion"], JSONB)),
+            )
+            .count()
         )
         bgg_with_cover = (
             s.query(Ownership)
@@ -168,6 +179,8 @@ def status():
         return {
             "bgg": {
                 "owned": bgg_owned,
+                "expansions": bgg_expansions,
+                "base_games": bgg_owned - bgg_expansions,
                 "with_cover": bgg_with_cover,
                 "without_cover": bgg_owned - bgg_with_cover,
                 "last_enrich": _run(last_bgg_enrich),

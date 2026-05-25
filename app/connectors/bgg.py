@@ -59,6 +59,11 @@ def run():
                 except ValueError:
                     pass
 
+            is_expansion = item.get("subtype") == "boardgameexpansion"
+            tags = ["boardgame"]
+            if is_expansion:
+                tags.append("expansion")
+
             game = (
                 s.query(Game)
                 .filter(Game.title_normalised == normalise_title(name))
@@ -73,10 +78,17 @@ def run():
                     player_count_max=pmax or 1,
                     has_local_coop=False,
                     has_local_vs=(pmax or 1) > 1,
-                    tags=["boardgame"],
+                    tags=tags,
                 )
                 s.add(game)
                 s.flush()
+            else:
+                existing_tags = list(game.tags or [])
+                if is_expansion and "expansion" not in existing_tags:
+                    existing_tags.append("expansion")
+                    game.tags = existing_tags
+                elif not is_expansion and "expansion" in existing_tags:
+                    game.tags = [t for t in existing_tags if t != "expansion"]
 
             already = (
                 s.query(Ownership)

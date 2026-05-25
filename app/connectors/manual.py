@@ -30,11 +30,22 @@ def _int_or_none(v):
         return None
 
 
+def _is_expansion(row: dict) -> bool:
+    itemtype = (row.get("itemtype") or "").strip().lower()
+    subtype = (row.get("subtype") or "").strip().lower()
+    objecttype = (row.get("objecttype") or "").strip().lower()
+    return (
+        itemtype == "expansion"
+        or subtype == "boardgameexpansion"
+        or objecttype == "expansion"
+    )
+
+
 def _bgg_find_or_create(session, row: dict):
     """Resolve a BGG CSV row to a canonical Game without calling IGDB
     (boardgames aren't in IGDB). For existing games, opportunistically
-    backfill missing fields (cover_url, player counts) when the row
-    carries them. Returns (game, was_enriched_bool)."""
+    backfill missing fields (cover_url, player counts, expansion tag)
+    when the row carries them. Returns (game, was_enriched_bool)."""
     title = (row.get("objectname") or row.get("title") or row.get("name") or "").strip()
     if not title:
         return None, False
@@ -42,6 +53,7 @@ def _bgg_find_or_create(session, row: dict):
     pmin = _int_or_none(row.get("minplayers"))
     pmax = _int_or_none(row.get("maxplayers"))
     cover = (row.get("image") or row.get("thumbnail") or "").strip() or None
+    is_exp = _is_expansion(row)
 
     existing = (
         session.query(Game)
@@ -62,7 +74,20 @@ def _bgg_find_or_create(session, row: dict):
         if year and not existing.release_year:
             existing.release_year = year
             enriched = True
+        tags = list(existing.tags or [])
+        if is_exp and "expansion" not in tags:
+            tags.append("expansion")
+            existing.tags = tags
+            enriched = True
+        elif not is_exp and "expansion" in tags:
+            tags = [t for t in tags if t != "expansion"]
+            existing.tags = tags
+            enriched = True
         return existing, enriched
+
+    tags = ["boardgame"]
+    if is_exp:
+        tags.append("expansion")
 
     game = Game(
         title=title,
@@ -72,7 +97,7 @@ def _bgg_find_or_create(session, row: dict):
         player_count_max=pmax or 1,
         has_local_coop=False,
         has_local_vs=(pmax or 1) > 1,
-        tags=["boardgame"],
+        tags=tags,
         cover_url=cover,
     )
     session.add(game)
@@ -110,6 +135,10 @@ def run(store: str, filename: str, content: bytes):
                     skipped += 1
                     continue
                 game, was_enriched = _bgg_find_or_create(s, row)
+                if game is not None and "expansion" in (game.tags or []):
+                    # still create the ownership row so users can opt in to
+                    # showing expansions; the filter excludes them by tag
+                    pass
                 if game is None:
                     skipped += 1
                     continue

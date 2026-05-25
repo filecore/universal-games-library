@@ -29,6 +29,7 @@
         const stats = item.querySelector("stats");
         return {
             objectid: item.getAttribute("objectid") || "",
+            subtype: item.getAttribute("subtype") || "",
             objectname: item.querySelector("name")?.textContent || "",
             image: item.querySelector("image")?.textContent || "",
             thumbnail: item.querySelector("thumbnail")?.textContent || "",
@@ -40,6 +41,7 @@
 
     const headers = [
         "objectid",
+        "subtype",
         "objectname",
         "image",
         "thumbnail",

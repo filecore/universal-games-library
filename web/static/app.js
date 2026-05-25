@@ -89,9 +89,13 @@ async function loadStatus() {
     const lastEnrich = bgg.last_enrich
         ? `<div class="last-run ${bgg.last_enrich.success ? "ok" : "fail"}">Last enrich: ${escapeHtml(bgg.last_enrich.message || "")}</div>`
         : `<div class="last-run">Never enriched</div>`;
+    const expansionLine = bgg.expansions
+        ? `<div class="stat-row"><span>BGG expansions</span><b>${bgg.expansions}</b></div>`
+        : "";
     block.innerHTML = `
         <div class="stat-row"><span>Steam owned</span><b>${steam.owned}</b></div>
-        <div class="stat-row"><span>BGG owned</span><b>${bgg.owned}</b></div>
+        <div class="stat-row"><span>BGG base games</span><b>${bgg.base_games}</b></div>
+        ${expansionLine}
         <div class="stat-row"><span>BGG with covers</span><b>${bgg.with_cover} / ${bgg.owned}</b></div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
         ${lastEnrich}
@@ -145,10 +149,12 @@ function getFilters() {
         onlineVs: document.getElementById("f-online-vs").checked,
         digital: document.getElementById("f-digital").checked,
         physical: document.getElementById("f-physical").checked,
+        includeExpansions: document.getElementById("f-include-expansions").checked,
     };
 }
 
 function matches(g, f) {
+    if (!f.includeExpansions && (g.tags || []).includes("expansion")) return false;
     if (f.search && !g.title.toLowerCase().includes(f.search)) return false;
     if (f.stores.length && !g.ownership.some((o) => f.stores.includes(o.store)))
         return false;
