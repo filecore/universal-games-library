@@ -180,6 +180,32 @@ main#games {
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
+
+.card .mp-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+    margin-top: 0.4rem;
+}
+.mp-pill {
+    font-size: 0.62rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 8px;
+    background: #2a2a2a;
+    color: #666;
+    border: 1px solid #333;
+    letter-spacing: 0.04em;
+    user-select: none;
+    transition: background 0.1s, color 0.1s;
+}
+.mp-pill.on {
+    background: #2b6cb0;
+    color: #fff;
+    border-color: #4fa3e0;
+}
+body.logged-in .mp-pill { cursor: pointer; }
+body.logged-in .mp-pill:hover { background: #3a3a3a; }
+body.logged-in .mp-pill.on:hover { background: #3182ce; }
 .badge.steam { background: #1b2838; }
 .badge.bgg { background: #ff5100; color: white; }
 .badge.psn { background: #006fcd; }

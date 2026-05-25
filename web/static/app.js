@@ -18,12 +18,15 @@ function renderAuthArea() {
         area.innerHTML = `Logged in as <b>${escapeHtml(currentUser)}</b> <button type="button" id="logout-btn" class="link-btn">Log out</button>`;
         document.getElementById("logout-btn").addEventListener("click", logout);
         mgmt.hidden = false;
+        document.body.classList.add("logged-in");
         loadStatus();
     } else {
         area.innerHTML = `<button type="button" id="login-btn" class="link-btn">Log in</button>`;
         document.getElementById("login-btn").addEventListener("click", openLoginModal);
         mgmt.hidden = true;
+        document.body.classList.remove("logged-in");
     }
+    render();
 }
 
 function openLoginModal() {
@@ -173,6 +176,27 @@ function escapeHtml(s) {
     );
 }
 
+const MP_FLAGS = [
+    { key: "has_local_coop", label: "L-coop" },
+    { key: "has_online_coop", label: "O-coop" },
+    { key: "has_local_vs", label: "L-vs" },
+    { key: "has_online_vs", label: "O-vs" },
+];
+
+function renderPills(g) {
+    const editable = !!currentUser;
+    const visible = editable
+        ? MP_FLAGS
+        : MP_FLAGS.filter((f) => g[f.key]);
+    if (!visible.length) return "";
+    return `<div class="mp-pills">${visible
+        .map(
+            (f) =>
+                `<span class="mp-pill ${g[f.key] ? "on" : ""}" data-game="${g.id}" data-flag="${f.key}">${f.label}</span>`,
+        )
+        .join("")}</div>`;
+}
+
 function render() {
     const f = getFilters();
     const m = document.getElementById("games");
@@ -202,6 +226,7 @@ function render() {
                 <div class="title">${escapeHtml(g.title)}</div>
                 <div class="meta">${meta}</div>
                 <div class="badges">${badges}</div>
+                ${renderPills(g)}
             </div>
         </div>`;
         })
@@ -209,6 +234,31 @@ function render() {
     document.getElementById("stats").textContent =
         `${filtered.length} / ${games.length} games`;
 }
+
+document.getElementById("games").addEventListener("click", async (ev) => {
+    const pill = ev.target.closest(".mp-pill");
+    if (!pill || !currentUser) return;
+    const gameId = parseInt(pill.dataset.game, 10);
+    const flag = pill.dataset.flag;
+    const game = games.find((g) => g.id === gameId);
+    if (!game) return;
+    const newValue = !game[flag];
+    // Optimistic update
+    game[flag] = newValue;
+    pill.classList.toggle("on", newValue);
+    const r = await fetch(`/api/games/${gameId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [flag]: newValue }),
+    });
+    if (!r.ok) {
+        // Revert
+        game[flag] = !newValue;
+        pill.classList.toggle("on", !newValue);
+        const s = document.getElementById("ingest-status");
+        s.textContent = `Update failed (HTTP ${r.status})`;
+    }
+});
 
 async function ingest(source) {
     const s = document.getElementById("ingest-status");

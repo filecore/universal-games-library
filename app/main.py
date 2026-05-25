@@ -3,7 +3,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -207,6 +207,28 @@ async def ingest_manual(
     require_user(request)
     content = await file.read()
     return manual.run(store, file.filename or "upload", content)
+
+
+@app.patch("/api/games/{game_id}")
+def update_game(game_id: int, request: Request, payload: dict = Body(...)):
+    require_user(request)
+    allowed = {
+        "has_local_coop",
+        "has_online_coop",
+        "has_local_vs",
+        "has_online_vs",
+        "has_campaign",
+    }
+    updates = {k: bool(payload[k]) for k in allowed if k in payload}
+    if not updates:
+        raise HTTPException(status_code=400, detail="no valid fields")
+    with get_session() as s:
+        game = s.get(Game, game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="not found")
+        for k, v in updates.items():
+            setattr(game, k, v)
+    return {"ok": True, "updated": list(updates.keys())}
 
 
 @app.get("/api/runs")
