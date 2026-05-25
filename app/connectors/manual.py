@@ -5,8 +5,8 @@ import logging
 from datetime import datetime
 
 from db import get_session
-from igdb import find_or_create_game
-from models import IngestionRun, Ownership
+from igdb import find_or_create_game, normalise_title
+from models import Game, IngestionRun, Ownership
 
 log = logging.getLogger("games.manual")
 
@@ -19,6 +19,46 @@ DEFAULT_PLATFORM = {
     "ubisoft": "pc",
     "bgg": "board",
 }
+
+
+def _int_or_none(v):
+    try:
+        if v in (None, "", "N/A"):
+            return None
+        return int(float(v))
+    except (ValueError, TypeError):
+        return None
+
+
+def _bgg_find_or_create(session, row: dict):
+    """Resolve a BGG CSV row to a canonical Game without calling IGDB
+    (boardgames aren't in IGDB)."""
+    title = (row.get("objectname") or row.get("title") or row.get("name") or "").strip()
+    if not title:
+        return None
+    year = _int_or_none(row.get("yearpublished") or row.get("year"))
+    pmin = _int_or_none(row.get("minplayers"))
+    pmax = _int_or_none(row.get("maxplayers"))
+    existing = (
+        session.query(Game)
+        .filter(Game.title_normalised == normalise_title(title))
+        .first()
+    )
+    if existing:
+        return existing
+    game = Game(
+        title=title,
+        title_normalised=normalise_title(title),
+        release_year=year,
+        player_count_min=pmin or 1,
+        player_count_max=pmax or 1,
+        has_local_coop=False,
+        has_local_vs=(pmax or 1) > 1,
+        tags=["boardgame"],
+    )
+    session.add(game)
+    session.flush()
+    return game
 
 
 def run(store: str, filename: str, content: bytes):
@@ -42,26 +82,44 @@ def run(store: str, filename: str, content: bytes):
     added, existing_count, skipped = 0, 0, 0
     with get_session() as s:
         for row in rows:
-            title = (row.get("title") or row.get("name") or "").strip()
-            if not title:
+            if not isinstance(row, dict):
                 skipped += 1
                 continue
-            platform = (row.get("platform") or DEFAULT_PLATFORM[store]).strip()
-            try:
-                year = int(row["year"]) if row.get("year") else None
-            except (ValueError, TypeError):
-                year = None
-            external_id = (
-                str(row.get("external_id") or row.get("id") or "").strip() or None
-            )
-            is_physical = str(row.get("is_physical") or "").lower() in (
-                "true",
-                "1",
-                "yes",
-                "y",
-            )
 
-            game = find_or_create_game(s, title, year_hint=year)
+            if store == "bgg":
+                if (row.get("own") or "").strip() == "0":
+                    skipped += 1
+                    continue
+                if (row.get("itemtype") or "").strip().lower() == "expansion":
+                    pass
+                game = _bgg_find_or_create(s, row)
+                if game is None:
+                    skipped += 1
+                    continue
+                external_id = (
+                    str(row.get("objectid") or row.get("external_id") or row.get("id") or "").strip()
+                    or None
+                )
+                platform = (row.get("platform") or "board").strip()
+                is_physical = True
+            else:
+                title = (row.get("title") or row.get("name") or "").strip()
+                if not title:
+                    skipped += 1
+                    continue
+                platform = (row.get("platform") or DEFAULT_PLATFORM[store]).strip()
+                year = _int_or_none(row.get("year"))
+                external_id = (
+                    str(row.get("external_id") or row.get("id") or "").strip() or None
+                )
+                is_physical = str(row.get("is_physical") or "").lower() in (
+                    "true",
+                    "1",
+                    "yes",
+                    "y",
+                )
+                game = find_or_create_game(s, title, year_hint=year)
+
             already = (
                 s.query(Ownership)
                 .filter_by(game_id=game.id, store=store, external_id=external_id)
@@ -77,7 +135,7 @@ def run(store: str, filename: str, content: bytes):
                     platform=platform,
                     external_id=external_id,
                     is_physical=is_physical,
-                    raw=row if isinstance(row, dict) else None,
+                    raw=row,
                 )
             )
             added += 1
