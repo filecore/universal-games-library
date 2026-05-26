@@ -99,7 +99,96 @@ async function loadGames() {
         for (const genre of g.genres || []) allGenres.add(genre);
     }
     buildFacets();
+    applyFiltersFromURL();
     render();
+}
+
+function serializeFilters() {
+    const f = getFilters();
+    const p = new URLSearchParams();
+    if (f.search) p.set("q", f.search);
+    if (f.stores.length) p.set("store", f.stores.join(","));
+    if (f.platforms.length) p.set("platform", f.platforms.join(","));
+    if (f.genres.length) p.set("genre", f.genres.join(","));
+    if (f.pmin !== null) p.set("pmin", f.pmin);
+    if (f.pmax !== null) p.set("pmax", f.pmax);
+    if (f.localCoop) p.set("lcoop", "1");
+    if (f.onlineCoop) p.set("ocoop", "1");
+    if (f.localVs) p.set("lvs", "1");
+    if (f.onlineVs) p.set("ovs", "1");
+    if (f.digital) p.set("digital", "1");
+    if (f.physical) p.set("physical", "1");
+    if (f.includeExpansions) p.set("inc-exp", "1");
+    if (f.vrOnly) p.set("vr-only", "1");
+    if (f.vrSupported) p.set("vr-supp", "1");
+    return p.toString();
+}
+
+function applyFiltersFromURL() {
+    const p = new URLSearchParams(location.search);
+    const searchEl = document.getElementById("f-search");
+    searchEl.value = p.get("q") || "";
+
+    const stores = (p.get("store") || "").split(",").filter(Boolean);
+    document.querySelectorAll("#f-store input").forEach((cb) => {
+        cb.checked = stores.includes(cb.dataset.store);
+    });
+    const platforms = (p.get("platform") || "").split(",").filter(Boolean);
+    document.querySelectorAll("#f-platform input").forEach((cb) => {
+        cb.checked = platforms.includes(cb.dataset.platform);
+    });
+    const genres = (p.get("genre") || "").split(",").filter(Boolean);
+    document.querySelectorAll("#f-genre input").forEach((cb) => {
+        cb.checked = genres.includes(cb.dataset.genre);
+    });
+
+    document.getElementById("f-pmin").value = p.get("pmin") || "";
+    document.getElementById("f-pmax").value = p.get("pmax") || "";
+    document.getElementById("f-local-coop").checked = p.get("lcoop") === "1";
+    document.getElementById("f-online-coop").checked = p.get("ocoop") === "1";
+    document.getElementById("f-local-vs").checked = p.get("lvs") === "1";
+    document.getElementById("f-online-vs").checked = p.get("ovs") === "1";
+    document.getElementById("f-digital").checked = p.get("digital") === "1";
+    document.getElementById("f-physical").checked = p.get("physical") === "1";
+    document.getElementById("f-include-expansions").checked =
+        p.get("inc-exp") === "1";
+    document.getElementById("f-vr-only").checked = p.get("vr-only") === "1";
+    document.getElementById("f-vr-supported").checked = p.get("vr-supp") === "1";
+
+    // Expand any group that has an active filter so the user can see what's
+    // selected when they land on a shared URL.
+    const hasActive = {
+        platform: platforms.length > 0,
+        store: stores.length > 0,
+        type:
+            document.getElementById("f-digital").checked ||
+            document.getElementById("f-physical").checked ||
+            document.getElementById("f-include-expansions").checked,
+        "player count":
+            document.getElementById("f-pmin").value ||
+            document.getElementById("f-pmax").value,
+        multiplayer:
+            document.getElementById("f-local-coop").checked ||
+            document.getElementById("f-online-coop").checked ||
+            document.getElementById("f-local-vs").checked ||
+            document.getElementById("f-online-vs").checked,
+        vr:
+            document.getElementById("f-vr-only").checked ||
+            document.getElementById("f-vr-supported").checked,
+        genres: genres.length > 0,
+    };
+    document.querySelectorAll("#filters .filter-group").forEach((det) => {
+        const summary = det.querySelector("summary")?.textContent?.trim().toLowerCase();
+        if (hasActive[summary]) det.setAttribute("open", "");
+    });
+
+    if (typeof updateSearchClear === "function") updateSearchClear();
+}
+
+function updateURL() {
+    const q = serializeFilters();
+    const newURL = location.pathname + (q ? "?" + q : "");
+    history.replaceState(null, "", newURL);
 }
 
 async function loadStatus() {
@@ -435,8 +524,12 @@ document.getElementById("manual-form").addEventListener("submit", async (ev) => 
     }
 });
 
+function renderAndPersist() {
+    render();
+    updateURL();
+}
 ["input", "change"].forEach((ev) => {
-    document.getElementById("filters").addEventListener(ev, render);
+    document.getElementById("filters").addEventListener(ev, renderAndPersist);
 });
 
 document.getElementById("filters-toggle").addEventListener("click", openFilters);
@@ -453,6 +546,7 @@ searchClear.addEventListener("click", () => {
     searchInput.value = "";
     updateSearchClear();
     render();
+    updateURL();
     searchInput.focus();
 });
 
