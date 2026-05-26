@@ -128,8 +128,6 @@ async function loadStatus() {
     block.innerHTML = `
         ${storeRows}
         ${expansionLine}
-        <div class="stat-row sub"><span>+ Boardgame covers</span><b>${bgg.with_cover} / ${bgg.owned}</b></div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
         ${lastEnrich}
     `;
 }
@@ -444,6 +442,19 @@ document.getElementById("manual-form").addEventListener("submit", async (ev) => 
 document.getElementById("filters-toggle").addEventListener("click", openFilters);
 document.getElementById("filters-close").addEventListener("click", closeFilters);
 document.getElementById("filters-backdrop").addEventListener("click", closeFilters);
+
+const searchInput = document.getElementById("f-search");
+const searchClear = document.getElementById("f-search-clear");
+function updateSearchClear() {
+    searchClear.hidden = !searchInput.value;
+}
+searchInput.addEventListener("input", updateSearchClear);
+searchClear.addEventListener("click", () => {
+    searchInput.value = "";
+    updateSearchClear();
+    render();
+    searchInput.focus();
+});
 
 async function loadSnippet() {
     try {
