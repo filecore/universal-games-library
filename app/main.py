@@ -124,9 +124,15 @@ def list_games():
 
 @app.get("/api/status")
 def status():
-    from sqlalchemy import cast
+    from sqlalchemy import cast, distinct, func
     from sqlalchemy.dialects.postgresql import JSONB
     with get_session() as s:
+        store_rows = (
+            s.query(Ownership.store, func.count(distinct(Ownership.game_id)))
+            .group_by(Ownership.store)
+            .all()
+        )
+        stores = {store: count for store, count in store_rows}
         bgg_owned = (
             s.query(Ownership).filter(Ownership.store == "bgg").count()
         )
@@ -177,6 +183,7 @@ def status():
             }
 
         return {
+            "stores": stores,
             "bgg": {
                 "owned": bgg_owned,
                 "expansions": bgg_expansions,

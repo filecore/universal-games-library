@@ -22,36 +22,52 @@
 
     <aside id="filters">
         <button type="button" id="filters-close" class="close-btn">Close</button>
-        <h2>Search</h2>
-        <input type="text" id="f-search" placeholder="Title contains...">
+        <details open class="filter-group">
+            <summary>Search</summary>
+            <input type="text" id="f-search" placeholder="Title contains...">
+        </details>
 
-        <h2>Store</h2>
-        <div id="f-store"></div>
+        <details open class="filter-group">
+            <summary>Store</summary>
+            <div id="f-store"></div>
+        </details>
 
-        <h2>Platform</h2>
-        <div id="f-platform"></div>
+        <details open class="filter-group">
+            <summary>Platform</summary>
+            <div id="f-platform"></div>
+        </details>
 
-        <h2>Type</h2>
-        <label><input type="checkbox" id="f-digital"> Digital</label>
-        <label><input type="checkbox" id="f-physical"> Physical</label>
-        <label><input type="checkbox" id="f-include-expansions"> Include expansions</label>
+        <details open class="filter-group">
+            <summary>Type</summary>
+            <label><input type="checkbox" id="f-digital"> Digital</label>
+            <label><input type="checkbox" id="f-physical"> Physical</label>
+            <label><input type="checkbox" id="f-include-expansions"> Include expansions</label>
+        </details>
 
-        <h2>Player count</h2>
-        <label>Min: <input type="number" id="f-pmin" min="1"></label>
-        <label>Max: <input type="number" id="f-pmax" min="1"></label>
+        <details class="filter-group">
+            <summary>Player count</summary>
+            <label>Min: <input type="number" id="f-pmin" min="1"></label>
+            <label>Max: <input type="number" id="f-pmax" min="1"></label>
+        </details>
 
-        <h2>Multiplayer</h2>
-        <label><input type="checkbox" id="f-local-coop"> Local coop</label>
-        <label><input type="checkbox" id="f-online-coop"> Online coop</label>
-        <label><input type="checkbox" id="f-local-vs"> Local vs</label>
-        <label><input type="checkbox" id="f-online-vs"> Online vs</label>
+        <details class="filter-group">
+            <summary>Multiplayer</summary>
+            <label><input type="checkbox" id="f-local-coop"> Local coop</label>
+            <label><input type="checkbox" id="f-online-coop"> Online coop</label>
+            <label><input type="checkbox" id="f-local-vs"> Local vs</label>
+            <label><input type="checkbox" id="f-online-vs"> Online vs</label>
+        </details>
 
-        <h2>VR</h2>
-        <label><input type="checkbox" id="f-vr-only"> VR only</label>
-        <label><input type="checkbox" id="f-vr-supported"> VR supported</label>
+        <details class="filter-group">
+            <summary>VR</summary>
+            <label><input type="checkbox" id="f-vr-only"> VR only</label>
+            <label><input type="checkbox" id="f-vr-supported"> VR supported</label>
+        </details>
 
-        <h2>Genres</h2>
-        <div id="f-genre"></div>
+        <details class="filter-group">
+            <summary>Genres</summary>
+            <div id="f-genre"></div>
+        </details>
 
         <section id="management" hidden>
             <h2>Status</h2>

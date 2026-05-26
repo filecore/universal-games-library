@@ -4,6 +4,30 @@ let allPlatforms = new Set();
 let allGenres = new Set();
 let currentUser = null;
 
+const STORE_LABELS = {
+    bgg: "Boardgames",
+    blizzard: "Blizzard",
+    epic: "Epic Games",
+    humble: "Humble Bundle",
+    "meta-quest": "Meta Quest",
+    "play-store": "Google Play",
+    psn: "PSN",
+    steam: "Steam",
+    ubisoft: "Ubisoft",
+};
+const PLATFORM_LABELS = {
+    pc: "PC",
+    ps4: "PS4",
+    ps5: "PS5",
+    android: "Android",
+    board: "Boardgame",
+    quest2: "Meta Quest 2",
+    switch: "Switch",
+    xbox: "Xbox",
+};
+const labelStore = (s) => STORE_LABELS[s] || s;
+const labelPlatform = (p) => PLATFORM_LABELS[p] || p;
+
 async function loadMe() {
     const r = await fetch("/api/me");
     const j = await r.json();
@@ -84,49 +108,87 @@ async function loadStatus() {
     const s = await r.json();
     const block = document.getElementById("status-block");
     const bgg = s.bgg;
-    const steam = s.steam;
+    const stores = s.stores || {};
     const pct = bgg.owned > 0 ? Math.round((bgg.with_cover / bgg.owned) * 100) : 0;
     const lastEnrich = bgg.last_enrich
-        ? `<div class="last-run ${bgg.last_enrich.success ? "ok" : "fail"}">Last enrich: ${escapeHtml(bgg.last_enrich.message || "")}</div>`
-        : `<div class="last-run">Never enriched</div>`;
+        ? `<div class="last-run ${bgg.last_enrich.success ? "ok" : "fail"}">Last BGG enrich: ${escapeHtml(bgg.last_enrich.message || "")}</div>`
+        : "";
+
+    const storeRows = Object.entries(stores)
+        .sort((a, b) => labelStore(a[0]).localeCompare(labelStore(b[0])))
+        .map(
+            ([store, count]) =>
+                `<div class="stat-row"><span>${escapeHtml(labelStore(store))}</span><b>${count}</b></div>`,
+        )
+        .join("");
+
     const expansionLine = bgg.expansions
-        ? `<div class="stat-row"><span>BGG expansions</span><b>${bgg.expansions}</b></div>`
+        ? `<div class="stat-row sub"><span>+ Boardgame expansions</span><b>${bgg.expansions}</b></div>`
         : "";
     block.innerHTML = `
-        <div class="stat-row"><span>Steam owned</span><b>${steam.owned}</b></div>
-        <div class="stat-row"><span>BGG base games</span><b>${bgg.base_games}</b></div>
+        ${storeRows}
         ${expansionLine}
-        <div class="stat-row"><span>BGG with covers</span><b>${bgg.with_cover} / ${bgg.owned}</b></div>
+        <div class="stat-row sub"><span>+ Boardgame covers</span><b>${bgg.with_cover} / ${bgg.owned}</b></div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
         ${lastEnrich}
     `;
 }
 
 function buildFacets() {
+    const storeCounts = new Map();
+    const platformCounts = new Map();
+    const genreCounts = new Map();
+    for (const g of games) {
+        const seenStores = new Set();
+        const seenPlatforms = new Set();
+        for (const o of g.ownership) {
+            if (!seenStores.has(o.store)) {
+                seenStores.add(o.store);
+                storeCounts.set(o.store, (storeCounts.get(o.store) || 0) + 1);
+            }
+            if (!seenPlatforms.has(o.platform)) {
+                seenPlatforms.add(o.platform);
+                platformCounts.set(
+                    o.platform,
+                    (platformCounts.get(o.platform) || 0) + 1,
+                );
+            }
+        }
+        for (const genre of g.genres || []) {
+            genreCounts.set(genre, (genreCounts.get(genre) || 0) + 1);
+        }
+    }
+
+    const sortedStores = [...allStores].sort((a, b) =>
+        labelStore(a).localeCompare(labelStore(b)),
+    );
     const storeBox = document.getElementById("f-store");
-    storeBox.innerHTML = "";
-    [...allStores].sort().forEach((s) => {
-        storeBox.insertAdjacentHTML(
-            "beforeend",
-            `<label><input type="checkbox" data-store="${s}"> ${s}</label>`,
-        );
-    });
+    storeBox.innerHTML = sortedStores
+        .map(
+            (s) =>
+                `<label><input type="checkbox" data-store="${s}"> ${escapeHtml(labelStore(s))} (${storeCounts.get(s) || 0})</label>`,
+        )
+        .join("");
+
+    const sortedPlatforms = [...allPlatforms].sort((a, b) =>
+        labelPlatform(a).localeCompare(labelPlatform(b)),
+    );
     const platBox = document.getElementById("f-platform");
-    platBox.innerHTML = "";
-    [...allPlatforms].sort().forEach((p) => {
-        platBox.insertAdjacentHTML(
-            "beforeend",
-            `<label><input type="checkbox" data-platform="${p}"> ${p}</label>`,
-        );
-    });
+    platBox.innerHTML = sortedPlatforms
+        .map(
+            (p) =>
+                `<label><input type="checkbox" data-platform="${p}"> ${escapeHtml(labelPlatform(p))} (${platformCounts.get(p) || 0})</label>`,
+        )
+        .join("");
+
+    const sortedGenres = [...allGenres].sort();
     const genreBox = document.getElementById("f-genre");
-    genreBox.innerHTML = "";
-    [...allGenres].sort().forEach((g) => {
-        genreBox.insertAdjacentHTML(
-            "beforeend",
-            `<label><input type="checkbox" data-genre="${g}"> ${g}</label>`,
-        );
-    });
+    genreBox.innerHTML = sortedGenres
+        .map(
+            (g) =>
+                `<label><input type="checkbox" data-genre="${escapeHtml(g)}"> ${escapeHtml(g)} (${genreCounts.get(g) || 0})</label>`,
+        )
+        .join("");
 }
 
 function getFilters() {

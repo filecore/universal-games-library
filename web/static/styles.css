@@ -60,6 +60,43 @@ aside#filters h2 {
     letter-spacing: 0.05em;
 }
 aside#filters h2:first-child { margin-top: 0; }
+
+aside#filters .filter-group {
+    margin-bottom: 0.3rem;
+    border-top: 1px solid #2a2a2a;
+    padding-top: 0.25rem;
+}
+aside#filters .filter-group:first-of-type { border-top: none; padding-top: 0; }
+aside#filters .filter-group > summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    color: #888;
+    letter-spacing: 0.05em;
+    padding: 0.4rem 0 0.25rem;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+aside#filters .filter-group > summary::-webkit-details-marker { display: none; }
+aside#filters .filter-group > summary::before {
+    content: "\25BE";
+    display: inline-block;
+    width: 0.9rem;
+    color: #555;
+    transition: transform 0.1s;
+    flex-shrink: 0;
+}
+aside#filters .filter-group:not([open]) > summary::before {
+    content: "\25B8";
+}
+aside#filters .filter-group > summary:hover { color: #ccc; }
+aside#filters .filter-group > summary:hover::before { color: #999; }
+aside#filters .filter-group input[type="text"],
+aside#filters .filter-group input[type="number"] {
+    margin-top: 0.1rem;
+}
 aside#filters label {
     display: block;
     font-size: 0.85rem;
@@ -112,6 +149,8 @@ aside#filters details input[type="file"] {
 }
 #status-block .stat-row { display: flex; justify-content: space-between; margin: 0.1rem 0; }
 #status-block .stat-row b { color: #eee; font-weight: 500; }
+#status-block .stat-row.sub { color: #888; font-size: 0.75rem; padding-left: 0.4rem; }
+#status-block .stat-row.sub b { color: #aaa; }
 #status-block .progress-bar {
     background: #333;
     border-radius: 2px;
