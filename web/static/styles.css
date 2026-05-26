@@ -20,7 +20,15 @@ header {
     background: #1a1a1a;
     z-index: 60;
 }
-header h1 { font-size: 1.1rem; margin: 0; font-weight: 600; flex-shrink: 0; }
+header h1 {
+    font-size: 1.05rem;
+    margin: 0;
+    font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .header-right {
     display: flex;
     align-items: center;
@@ -45,7 +53,7 @@ aside#filters {
     position: fixed;
     top: var(--topbar-h);
     left: 0;
-    width: 240px;
+    width: 252px;
     padding: 0.75rem 1rem;
     height: calc(100vh - var(--topbar-h));
     overflow-y: auto;
@@ -199,7 +207,7 @@ aside#filters details input[type="file"] {
 #status-block .last-run .ok { color: #8e8; }
 
 main#games {
-    margin-left: 270px;
+    margin-left: 282px;
     padding: 1rem 1.5rem;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
