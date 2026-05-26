@@ -84,10 +84,20 @@ def search_game(
     if not results:
         return None
     if year_hint:
+        # Exact-year match wins outright
         for g in results:
             ts = g.get("first_release_date")
             if ts and time.gmtime(ts).tm_year == year_hint:
                 return g
+        # +/-1 year is acceptable (release-window slop)
+        for g in results:
+            ts = g.get("first_release_date")
+            if ts and abs(time.gmtime(ts).tm_year - year_hint) <= 1:
+                return g
+        # No near-year candidate; refuse rather than silently returning
+        # a wildly off-year result (the failure mode that put 2011 MW3
+        # onto the 2023 remake's IGDB entry).
+        return None
     return results[0]
 
 
