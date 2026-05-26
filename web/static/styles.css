@@ -213,6 +213,8 @@ body.logged-in .mp-pill.on:hover { background: #3182ce; }
 .badge.ubisoft { background: #0072c6; }
 .badge.blizzard { background: #00aeff; color: #002133; }
 .badge.meta-quest { background: #1c1e20; color: #00b3ff; border: 1px solid #00b3ff; }
+.badge.play-store { background: #2e8b57; color: white; }
+.badge.humble { background: #cc2929; color: white; }
 .badge.vr { background: #6f3cff; color: white; }
 .badge.vr-mode { background: #2a1a4d; color: #c5b3ff; border: 1px solid #6f3cff; }
 
