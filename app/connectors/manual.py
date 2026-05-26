@@ -10,7 +10,7 @@ from models import Game, IngestionRun, Ownership
 
 log = logging.getLogger("games.manual")
 
-VALID_STORES = {"steam", "psn", "epic", "blizzard", "ubisoft", "bgg"}
+VALID_STORES = {"steam", "psn", "epic", "blizzard", "ubisoft", "bgg", "meta-quest"}
 DEFAULT_PLATFORM = {
     "steam": "pc",
     "psn": "ps5",
@@ -18,6 +18,7 @@ DEFAULT_PLATFORM = {
     "blizzard": "pc",
     "ubisoft": "pc",
     "bgg": "board",
+    "meta-quest": "quest2",
 }
 
 

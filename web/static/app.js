@@ -150,11 +150,17 @@ function getFilters() {
         digital: document.getElementById("f-digital").checked,
         physical: document.getElementById("f-physical").checked,
         includeExpansions: document.getElementById("f-include-expansions").checked,
+        vrOnly: document.getElementById("f-vr-only").checked,
+        vrSupported: document.getElementById("f-vr-supported").checked,
     };
 }
 
 function matches(g, f) {
     if (!f.includeExpansions && (g.tags || []).includes("expansion")) return false;
+    const tags = g.tags || [];
+    if (f.vrOnly && !tags.includes("vr-only")) return false;
+    if (f.vrSupported && !tags.includes("vr-only") && !tags.includes("vr-mode"))
+        return false;
     if (f.search && !g.title.toLowerCase().includes(f.search)) return false;
     if (f.stores.length && !g.ownership.some((o) => f.stores.includes(o.store)))
         return false;
@@ -220,12 +226,19 @@ function render() {
                     : "";
             const year = g.release_year ? ` &middot; ${g.release_year}` : "";
             const meta = `${players}${year}`;
-            const badges = g.ownership
-                .map(
-                    (o) =>
-                        `<span class="badge ${escapeHtml(o.store)}">${escapeHtml(o.store)}</span>`,
-                )
-                .join("");
+            const tags = g.tags || [];
+            const vrBadge = tags.includes("vr-only")
+                ? `<span class="badge vr">VR</span>`
+                : tags.includes("vr-mode")
+                  ? `<span class="badge vr-mode">VR mode</span>`
+                  : "";
+            const badges =
+                g.ownership
+                    .map(
+                        (o) =>
+                            `<span class="badge ${escapeHtml(o.store)}">${escapeHtml(o.store)}</span>`,
+                    )
+                    .join("") + vrBadge;
             return `<div class="card">
             ${cover}
             <div class="body">
