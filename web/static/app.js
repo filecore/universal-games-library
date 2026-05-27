@@ -387,12 +387,20 @@ function render() {
                 : tags.includes("vr-mode")
                   ? `<span class="badge vr-mode">VR mode</span>`
                   : "";
+            const storesByCard = new Map();
+            for (const o of g.ownership) {
+                if (!storesByCard.has(o.store)) storesByCard.set(o.store, new Set());
+                storesByCard.get(o.store).add(o.platform);
+            }
             const badges =
-                g.ownership
-                    .map(
-                        (o) =>
-                            `<span class="badge ${escapeHtml(o.store)}">${escapeHtml(o.store)}</span>`,
-                    )
+                [...storesByCard.entries()]
+                    .map(([store, plats]) => {
+                        const platList = [...plats]
+                            .map(labelPlatform)
+                            .join(", ");
+                        const tip = `${labelStore(store)} (${platList})`;
+                        return `<span class="badge ${escapeHtml(store)}" title="${escapeHtml(tip)}">${escapeHtml(store)}</span>`;
+                    })
                     .join("") + vrBadge;
             return `<div class="card">
             ${cover}
