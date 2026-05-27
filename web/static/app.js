@@ -121,6 +121,7 @@ function serializeFilters() {
     if (f.includeExpansions) p.set("inc-exp", "1");
     if (f.vrOnly) p.set("vr-only", "1");
     if (f.vrSupported) p.set("vr-supp", "1");
+    if (f.vrExclude) p.set("vr-no", "1");
     return p.toString();
 }
 
@@ -154,6 +155,7 @@ function applyFiltersFromURL() {
         p.get("inc-exp") === "1";
     document.getElementById("f-vr-only").checked = p.get("vr-only") === "1";
     document.getElementById("f-vr-supported").checked = p.get("vr-supp") === "1";
+    document.getElementById("f-vr-exclude").checked = p.get("vr-no") === "1";
 
     // Expand any group that has an active filter so the user can see what's
     // selected when they land on a shared URL.
@@ -174,7 +176,8 @@ function applyFiltersFromURL() {
             document.getElementById("f-online-vs").checked,
         vr:
             document.getElementById("f-vr-only").checked ||
-            document.getElementById("f-vr-supported").checked,
+            document.getElementById("f-vr-supported").checked ||
+            document.getElementById("f-vr-exclude").checked,
         genres: genres.length > 0,
     };
     document.querySelectorAll("#filters .filter-group").forEach((det) => {
@@ -301,6 +304,7 @@ function getFilters() {
         includeExpansions: document.getElementById("f-include-expansions").checked,
         vrOnly: document.getElementById("f-vr-only").checked,
         vrSupported: document.getElementById("f-vr-supported").checked,
+        vrExclude: document.getElementById("f-vr-exclude").checked,
     };
 }
 
@@ -309,6 +313,8 @@ function matches(g, f) {
     const tags = g.tags || [];
     if (f.vrOnly && !tags.includes("vr-only")) return false;
     if (f.vrSupported && !tags.includes("vr-only") && !tags.includes("vr-mode"))
+        return false;
+    if (f.vrExclude && (tags.includes("vr-only") || tags.includes("vr-mode")))
         return false;
     if (f.search && !g.title.toLowerCase().includes(f.search)) return false;
     if (f.stores.length && !g.ownership.some((o) => f.stores.includes(o.store)))
