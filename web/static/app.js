@@ -418,7 +418,8 @@ function render() {
                             .map(labelPlatform)
                             .join(", ");
                         const tip = `${labelStore(store)} (${platList})`;
-                        return `<span class="badge ${escapeHtml(store)}" title="${escapeHtml(tip)}">${escapeHtml(store)}</span>`;
+                        const text = store.replace(/-/g, " ");
+                        return `<span class="badge ${escapeHtml(store)}" title="${escapeHtml(tip)}">${escapeHtml(text)}</span>`;
                     })
                     .join("") + vrBadge;
             return `<div class="card">
