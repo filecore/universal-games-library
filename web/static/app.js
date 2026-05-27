@@ -433,17 +433,27 @@ function render() {
                 if (!storesByCard.has(o.store)) storesByCard.set(o.store, new Set());
                 storesByCard.get(o.store).add(o.platform);
             }
-            const badges =
-                [...storesByCard.entries()]
-                    .map(([store, plats]) => {
-                        const platList = [...plats]
-                            .map(labelPlatform)
-                            .join(", ");
-                        const tip = `${labelStore(store)} (${platList})`;
-                        const text = store.replace(/-/g, " ");
-                        return `<span class="badge ${escapeHtml(store)}" title="${escapeHtml(tip)}">${escapeHtml(text)}</span>`;
-                    })
-                    .join("") + vrBadge;
+            const badgeParts = [];
+            for (const [store, plats] of storesByCard) {
+                const storeLabel = store.replace(/-/g, " ");
+                if (plats.size === 1) {
+                    const plat = [...plats][0];
+                    const tip = `${labelStore(store)} (${labelPlatform(plat)})`;
+                    badgeParts.push(
+                        `<span class="badge ${escapeHtml(store)}" title="${escapeHtml(tip)}">${escapeHtml(storeLabel)}</span>`,
+                    );
+                } else {
+                    // Multiple platforms in one store - one badge per platform
+                    for (const plat of [...plats].sort()) {
+                        const tip = `${labelStore(store)} (${labelPlatform(plat)})`;
+                        const text = `${storeLabel} ${labelPlatform(plat)}`;
+                        badgeParts.push(
+                            `<span class="badge ${escapeHtml(store)}" title="${escapeHtml(tip)}">${escapeHtml(text)}</span>`,
+                        );
+                    }
+                }
+            }
+            const badges = badgeParts.join("") + vrBadge;
             return `<div class="card">
             ${cover}
             <div class="body">
