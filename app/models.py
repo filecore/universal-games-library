@@ -55,6 +55,7 @@ class Ownership(Base):
     external_id = Column(String(128), nullable=True)
     is_physical = Column(Boolean, default=False)
     acquired_at = Column(DateTime, nullable=True)
+    playtime_minutes = Column(Integer, nullable=True)
     raw = Column(JSONB, nullable=True)
 
     game = relationship("Game", back_populates="ownership")
