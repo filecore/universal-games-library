@@ -287,6 +287,47 @@ def update_game(game_id: int, request: Request, payload: dict = Body(...)):
     return {"ok": True, "updated": list(updates.keys())}
 
 
+@app.get("/api/games/{game_id}/raw")
+def game_raw(game_id: int, request: Request):
+    require_user(request)
+    with get_session() as s:
+        game = s.get(Game, game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="not found")
+        return {
+            "id": game.id,
+            "title": game.title,
+            "title_normalised": game.title_normalised,
+            "igdb_id": game.igdb_id,
+            "release_year": game.release_year,
+            "cover_url": game.cover_url,
+            "player_count_min": game.player_count_min,
+            "player_count_max": game.player_count_max,
+            "has_local_coop": game.has_local_coop,
+            "has_online_coop": game.has_online_coop,
+            "has_local_vs": game.has_local_vs,
+            "has_online_vs": game.has_online_vs,
+            "has_campaign": game.has_campaign,
+            "genres": game.genres,
+            "tags": game.tags,
+            "igdb_raw": game.igdb_raw,
+            "created_at": game.created_at.isoformat() if game.created_at else None,
+            "updated_at": game.updated_at.isoformat() if game.updated_at else None,
+            "ownership": [
+                {
+                    "id": o.id,
+                    "store": o.store,
+                    "platform": o.platform,
+                    "external_id": o.external_id,
+                    "is_physical": o.is_physical,
+                    "playtime_minutes": o.playtime_minutes,
+                    "raw": o.raw,
+                }
+                for o in game.ownership
+            ],
+        }
+
+
 @app.post("/api/games/{game_id}/refetch-igdb")
 def refetch_igdb(game_id: int, request: Request):
     """Re-pull the IGDB record for the game's stored igdb_id and apply

@@ -716,6 +716,20 @@ document.getElementById("gm-edit-form").addEventListener("submit", async (ev) =>
     if (updated) openGameModal(updated);
 });
 
+// Lazy-load raw data when the user expands the section
+document.getElementById("gm-raw-wrap").addEventListener("toggle", async (ev) => {
+    if (!ev.target.open || !currentModalGame) return;
+    const pre = document.getElementById("gm-raw");
+    pre.textContent = "Loading...";
+    const r = await fetch(`/api/games/${currentModalGame.id}/raw`);
+    if (!r.ok) {
+        pre.textContent = `Error: HTTP ${r.status}`;
+        return;
+    }
+    const data = await r.json();
+    pre.textContent = JSON.stringify(data, null, 2);
+});
+
 document.getElementById("gm-refetch").addEventListener("click", async () => {
     if (!currentModalGame) return;
     const r = await fetch(`/api/games/${currentModalGame.id}/refetch-igdb`, {
