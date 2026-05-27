@@ -94,8 +94,12 @@ def logout(request: Request):
 def list_games():
     with get_session() as s:
         rows = s.query(Game).all()
-        return [
-            {
+        out = []
+        for g in rows:
+            owns = g.ownership
+            total_pt = sum((o.playtime_minutes or 0) for o in owns)
+            has_any_pt = any(o.playtime_minutes is not None for o in owns)
+            out.append({
                 "id": g.id,
                 "title": g.title,
                 "release_year": g.release_year,
@@ -109,17 +113,18 @@ def list_games():
                 "genres": g.genres or [],
                 "tags": g.tags or [],
                 "cover_url": g.cover_url,
+                "playtime_minutes": total_pt if has_any_pt else None,
                 "ownership": [
                     {
                         "store": o.store,
                         "platform": o.platform,
                         "is_physical": o.is_physical,
+                        "playtime_minutes": o.playtime_minutes,
                     }
-                    for o in g.ownership
+                    for o in owns
                 ],
-            }
-            for g in rows
-        ]
+            })
+        return out
 
 
 @app.get("/api/status")

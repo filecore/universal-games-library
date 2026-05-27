@@ -380,7 +380,27 @@ function sortGames(arr) {
         return [...arr].sort((a, b) => (b.release_year || 0) - (a.release_year || 0) || titleCmp(a, b));
     if (mode === "year-asc")
         return [...arr].sort((a, b) => (a.release_year || 9999) - (b.release_year || 9999) || titleCmp(a, b));
+    if (mode === "played-desc")
+        return [...arr].sort((a, b) => (b.playtime_minutes || 0) - (a.playtime_minutes || 0) || titleCmp(a, b));
+    if (mode === "played-asc") {
+        // Games with no playtime info go last; among tracked ones, lowest first
+        return [...arr].sort((a, b) => {
+            const aHas = a.playtime_minutes != null;
+            const bHas = b.playtime_minutes != null;
+            if (aHas !== bHas) return aHas ? -1 : 1;
+            return (a.playtime_minutes || 0) - (b.playtime_minutes || 0) || titleCmp(a, b);
+        });
+    }
     return arr;
+}
+
+function formatPlaytime(minutes) {
+    if (minutes == null) return "";
+    if (minutes < 1) return "&lt;1m";
+    if (minutes < 60) return `${minutes}m`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
 }
 
 function render() {
@@ -399,7 +419,9 @@ function render() {
                         : `${g.player_count_min}-${g.player_count_max}p`
                     : "";
             const year = g.release_year ? ` &middot; ${g.release_year}` : "";
-            const meta = `${players}${year}`;
+            const pt = formatPlaytime(g.playtime_minutes);
+            const ptStr = pt ? ` &middot; ${pt} played` : "";
+            const meta = `${players}${year}${ptStr}`;
             const tags = g.tags || [];
             const vrBadge = tags.includes("vr-only")
                 ? `<span class="badge vr">VR</span>`
