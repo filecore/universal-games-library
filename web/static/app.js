@@ -308,6 +308,7 @@ function applyFiltersFromURL() {
 
     document.getElementById("f-pmin").value = p.get("pmin") || "";
     document.getElementById("f-pmax").value = p.get("pmax") || "";
+    if (typeof syncNumberToRange === "function") syncNumberToRange();
     document.getElementById("f-local-coop").checked = p.get("lcoop") === "1";
     document.getElementById("f-online-coop").checked = p.get("ocoop") === "1";
     document.getElementById("f-local-vs").checked = p.get("lvs") === "1";
@@ -863,6 +864,55 @@ function renderAndPersist() {
     document.getElementById("filters").addEventListener(ev, renderAndPersist);
 });
 document.getElementById("f-sort").addEventListener("change", renderAndPersist);
+
+const PC_MIN = 1, PC_MAX = 32;
+const pcMinRange = document.getElementById("pc-min-range");
+const pcMaxRange = document.getElementById("pc-max-range");
+const pcMinDisp = document.getElementById("pc-min-disp");
+const pcMaxDisp = document.getElementById("pc-max-disp");
+const pcMinNum = document.getElementById("f-pmin");
+const pcMaxNum = document.getElementById("f-pmax");
+
+function updatePCDisplay() {
+    const mn = parseInt(pcMinRange.value, 10);
+    const mx = parseInt(pcMaxRange.value, 10);
+    pcMinDisp.textContent = mn;
+    pcMaxDisp.textContent = mx >= PC_MAX ? `${PC_MAX}+` : mx;
+}
+
+function syncRangeToNumber() {
+    let mn = parseInt(pcMinRange.value, 10);
+    let mx = parseInt(pcMaxRange.value, 10);
+    if (mn > mx) {
+        // Prevent crossover by snapping the other thumb
+        if (this === pcMinRange) {
+            mx = mn;
+            pcMaxRange.value = mx;
+        } else {
+            mn = mx;
+            pcMinRange.value = mn;
+        }
+    }
+    updatePCDisplay();
+    // Mirror into the number inputs (source of truth for filter + URL)
+    pcMinNum.value = mn <= PC_MIN ? "" : mn;
+    pcMaxNum.value = mx >= PC_MAX ? "" : mx;
+    renderAndPersist();
+}
+
+function syncNumberToRange() {
+    const mn = parseInt(pcMinNum.value, 10);
+    const mx = parseInt(pcMaxNum.value, 10);
+    pcMinRange.value = Number.isFinite(mn) ? Math.max(PC_MIN, Math.min(PC_MAX, mn)) : PC_MIN;
+    pcMaxRange.value = Number.isFinite(mx) ? Math.max(PC_MIN, Math.min(PC_MAX, mx)) : PC_MAX;
+    updatePCDisplay();
+}
+
+pcMinRange.addEventListener("input", syncRangeToNumber);
+pcMaxRange.addEventListener("input", syncRangeToNumber);
+pcMinNum.addEventListener("input", syncNumberToRange);
+pcMaxNum.addEventListener("input", syncNumberToRange);
+updatePCDisplay();
 
 document.getElementById("filters-toggle").addEventListener("click", openFilters);
 document.getElementById("filters-close").addEventListener("click", closeFilters);

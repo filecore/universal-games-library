@@ -58,8 +58,17 @@
 
         <details class="filter-group">
             <summary>Player count</summary>
-            <label>Min: <input type="number" id="f-pmin" min="1"></label>
-            <label>Max: <input type="number" id="f-pmax" min="1"></label>
+            <div class="pc-slider-wrap">
+                <div class="pc-display"><span id="pc-min-disp">1</span> &ndash; <span id="pc-max-disp">32+</span> players</div>
+                <div class="pc-slider">
+                    <input type="range" id="pc-min-range" min="1" max="32" step="1" value="1">
+                    <input type="range" id="pc-max-range" min="1" max="32" step="1" value="32">
+                </div>
+            </div>
+            <div class="pc-inputs">
+                <label>Min: <input type="number" id="f-pmin" min="1"></label>
+                <label>Max: <input type="number" id="f-pmax" min="1"></label>
+            </div>
         </details>
 
         <details class="filter-group">
