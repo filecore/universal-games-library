@@ -122,6 +122,8 @@ function serializeFilters() {
     if (f.vrOnly) p.set("vr-only", "1");
     if (f.vrSupported) p.set("vr-supp", "1");
     if (f.vrExclude) p.set("vr-no", "1");
+    const sort = document.getElementById("f-sort")?.value;
+    if (sort && sort !== "title") p.set("sort", sort);
     return p.toString();
 }
 
@@ -156,6 +158,8 @@ function applyFiltersFromURL() {
     document.getElementById("f-vr-only").checked = p.get("vr-only") === "1";
     document.getElementById("f-vr-supported").checked = p.get("vr-supp") === "1";
     document.getElementById("f-vr-exclude").checked = p.get("vr-no") === "1";
+    const sortEl = document.getElementById("f-sort");
+    if (sortEl) sortEl.value = p.get("sort") || "title";
 
     // Expand any group that has an active filter so the user can see what's
     // selected when they land on a shared URL.
@@ -364,10 +368,25 @@ function renderPills(g) {
         .join("")}</div>`;
 }
 
+function sortGames(arr) {
+    const mode = document.getElementById("f-sort")?.value || "title";
+    const titleCmp = (a, b) =>
+        a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+    if (mode === "title")
+        return [...arr].sort(titleCmp);
+    if (mode === "title-desc")
+        return [...arr].sort((a, b) => titleCmp(b, a));
+    if (mode === "year-desc")
+        return [...arr].sort((a, b) => (b.release_year || 0) - (a.release_year || 0) || titleCmp(a, b));
+    if (mode === "year-asc")
+        return [...arr].sort((a, b) => (a.release_year || 9999) - (b.release_year || 9999) || titleCmp(a, b));
+    return arr;
+}
+
 function render() {
     const f = getFilters();
     const m = document.getElementById("games");
-    const filtered = games.filter((g) => matches(g, f));
+    const filtered = sortGames(games.filter((g) => matches(g, f)));
     m.innerHTML = filtered
         .map((g) => {
             const cover = g.cover_url
@@ -545,6 +564,7 @@ function renderAndPersist() {
 ["input", "change"].forEach((ev) => {
     document.getElementById("filters").addEventListener(ev, renderAndPersist);
 });
+document.getElementById("f-sort").addEventListener("change", renderAndPersist);
 
 document.getElementById("filters-toggle").addEventListener("click", openFilters);
 document.getElementById("filters-close").addEventListener("click", closeFilters);

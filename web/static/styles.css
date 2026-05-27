@@ -39,6 +39,15 @@ header h1 {
 }
 .header-right::-webkit-scrollbar { display: none; }
 #stats { color: #999; font-size: 0.85rem; white-space: nowrap; }
+#f-sort {
+    background: #222;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 3px;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
 .link-btn {
     background: none;
     border: none;
