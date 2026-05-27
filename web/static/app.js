@@ -69,6 +69,145 @@ function closeLoginModal() {
     modal.hidden = true;
 }
 
+function sourceUrl(store, externalId, title) {
+    const q = encodeURIComponent(title);
+    switch (store) {
+        case "steam":
+            return externalId
+                ? `https://store.steampowered.com/app/${externalId}`
+                : `https://store.steampowered.com/search/?term=${q}`;
+        case "bgg":
+            return externalId
+                ? `https://boardgamegeek.com/boardgame/${externalId}`
+                : `https://boardgamegeek.com/geeksearch.php?action=search&q=${q}`;
+        case "psn":
+            return `https://store.playstation.com/en-us/search/${q}`;
+        case "epic":
+            return `https://store.epicgames.com/en-US/browse?q=${q}`;
+        case "humble":
+            return `https://www.humblebundle.com/store/search?search=${q}`;
+        case "ubisoft":
+            return `https://store.ubisoft.com/?q=${q}`;
+        case "blizzard":
+            return `https://us.shop.battle.net/search?q=${q}`;
+        case "meta-quest":
+            return `https://www.meta.com/experiences/search/?q=${q}`;
+        case "play-store":
+            return `https://play.google.com/store/search?q=${q}&c=apps`;
+        default:
+            return `https://www.google.com/search?q=${q}`;
+    }
+}
+
+let currentModalGame = null;
+
+function openGameModal(game) {
+    currentModalGame = game;
+    const m = document.getElementById("game-modal");
+    document.getElementById("gm-title").textContent = game.title;
+    const cover = document.getElementById("gm-cover");
+    if (game.cover_url) {
+        cover.style.backgroundImage = `url('${game.cover_url}')`;
+        cover.classList.remove("empty");
+    } else {
+        cover.style.backgroundImage = "";
+        cover.classList.add("empty");
+    }
+    const players =
+        game.player_count_min && game.player_count_max
+            ? game.player_count_min === game.player_count_max
+                ? `${game.player_count_min}p`
+                : `${game.player_count_min}-${game.player_count_max}p`
+            : "";
+    const yr = game.release_year ? `${game.release_year}` : "";
+    const pt = formatPlaytime(game.playtime_minutes);
+    document.getElementById("gm-meta").innerHTML =
+        [yr, players, pt && `${pt} played`].filter(Boolean).join(" &middot; ");
+
+    const tags = game.tags || [];
+    const vrBadge = tags.includes("vr-only")
+        ? `<span class="badge vr">VR</span>`
+        : tags.includes("vr-mode")
+          ? `<span class="badge vr-mode">VR mode</span>`
+          : "";
+    document.getElementById("gm-badges").innerHTML = vrBadge;
+    document.getElementById("gm-genres").innerHTML =
+        (game.genres || []).length
+            ? (game.genres || [])
+                  .map((g) => `<span class="genre-chip">${escapeHtml(g)}</span>`)
+                  .join("")
+            : "";
+
+    // Ownership list, with per-row store link + playtime
+    document.getElementById("gm-ownership").innerHTML = game.ownership
+        .map((o) => {
+            const link = sourceUrl(o.store, o.external_id, game.title);
+            const pt2 = formatPlaytime(o.playtime_minutes);
+            const ptStr = pt2 ? ` &middot; ${pt2}` : "";
+            return `<li>
+                <span class="badge ${escapeHtml(o.store)}">${escapeHtml(o.store.replace(/-/g, " "))}</span>
+                <span class="ownership-plat">${escapeHtml(labelPlatform(o.platform))}</span>
+                <span class="ownership-pt">${ptStr}</span>
+                <a class="src-link" href="${link}" target="_blank" rel="noopener">View &rarr;</a>
+            </li>`;
+        })
+        .join("");
+
+    // Multiplayer pills (reuses existing renderer)
+    document.getElementById("gm-pills").innerHTML = renderPillsInner(game);
+
+    // Actions: IGDB link if igdb_id known
+    const actions = document.getElementById("gm-actions");
+    actions.innerHTML = "";
+    if (game.cover_url || game.title) {
+        const igdbSearch = `https://www.igdb.com/search?type=1&q=${encodeURIComponent(game.title)}`;
+        actions.insertAdjacentHTML(
+            "beforeend",
+            `<a class="action-link" href="${igdbSearch}" target="_blank" rel="noopener">Search IGDB</a>`,
+        );
+    }
+
+    // Editor (logged-in only)
+    const editor = document.getElementById("gm-editor-wrap");
+    if (currentUser) {
+        editor.hidden = false;
+        const f = document.getElementById("gm-edit-form");
+        f.elements.title.value = game.title || "";
+        f.elements.release_year.value = game.release_year || "";
+        f.elements.cover_url.value = game.cover_url || "";
+        f.elements.igdb_id.value = "";  // populated only if user wants to change
+        f.elements.player_count_min.value = game.player_count_min || "";
+        f.elements.player_count_max.value = game.player_count_max || "";
+        f.elements.genres.value = (game.genres || []).join(", ");
+        f.elements.tags.value = (game.tags || []).join(", ");
+        f.dataset.gameId = game.id;
+    } else {
+        editor.hidden = true;
+    }
+
+    m.classList.add("open");
+    m.hidden = false;
+}
+
+function closeGameModal() {
+    const m = document.getElementById("game-modal");
+    m.classList.remove("open");
+    m.hidden = true;
+    currentModalGame = null;
+}
+
+function renderPillsInner(g) {
+    const editable = !!currentUser;
+    const visible = editable ? MP_FLAGS : MP_FLAGS.filter((f) => g[f.key]);
+    if (!visible.length) return "<span class=\"muted\">No multiplayer</span>";
+    return visible
+        .map(
+            (f) =>
+                `<span class="mp-pill ${g[f.key] ? "on" : ""}" data-game="${g.id}" data-flag="${f.key}">${f.label}</span>`,
+        )
+        .join("");
+}
+
 function openFilters() {
     document.getElementById("filters").classList.add("open");
     document.getElementById("filters-backdrop").classList.add("open");
@@ -454,7 +593,7 @@ function render() {
                 }
             }
             const badges = badgeParts.join("") + vrBadge;
-            return `<div class="card">
+            return `<div class="card" data-game-id="${g.id}">
             ${cover}
             <div class="body">
                 <div class="title">${escapeHtml(g.title)}</div>
@@ -471,13 +610,53 @@ function render() {
 
 document.getElementById("games").addEventListener("click", async (ev) => {
     const pill = ev.target.closest(".mp-pill");
-    if (!pill || !currentUser) return;
+    if (pill) {
+        if (!currentUser) return;
+        ev.stopPropagation();
+        const gameId = parseInt(pill.dataset.game, 10);
+        const flag = pill.dataset.flag;
+        const game = games.find((g) => g.id === gameId);
+        if (!game) return;
+        const newValue = !game[flag];
+        game[flag] = newValue;
+        pill.classList.toggle("on", newValue);
+        const r = await fetch(`/api/games/${gameId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [flag]: newValue }),
+        });
+        if (!r.ok) {
+            game[flag] = !newValue;
+            pill.classList.toggle("on", !newValue);
+        }
+        return;
+    }
+    const card = ev.target.closest(".card");
+    if (!card) return;
+    const gameId = parseInt(card.dataset.gameId, 10);
+    const game = games.find((g) => g.id === gameId);
+    if (game) openGameModal(game);
+});
+
+document.getElementById("game-modal-close").addEventListener("click", closeGameModal);
+document.getElementById("game-modal").addEventListener("click", (ev) => {
+    if (ev.target.id === "game-modal") closeGameModal();
+});
+document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+        if (!document.getElementById("game-modal").hidden) closeGameModal();
+    }
+});
+
+// Pills inside the modal also need to toggle
+document.getElementById("gm-pills").addEventListener("click", async (ev) => {
+    const pill = ev.target.closest(".mp-pill");
+    if (!pill || !currentUser || !currentModalGame) return;
     const gameId = parseInt(pill.dataset.game, 10);
     const flag = pill.dataset.flag;
     const game = games.find((g) => g.id === gameId);
     if (!game) return;
     const newValue = !game[flag];
-    // Optimistic update
     game[flag] = newValue;
     pill.classList.toggle("on", newValue);
     const r = await fetch(`/api/games/${gameId}`, {
@@ -486,12 +665,62 @@ document.getElementById("games").addEventListener("click", async (ev) => {
         body: JSON.stringify({ [flag]: newValue }),
     });
     if (!r.ok) {
-        // Revert
         game[flag] = !newValue;
         pill.classList.toggle("on", !newValue);
-        const s = document.getElementById("ingest-status");
-        s.textContent = `Update failed (HTTP ${r.status})`;
+    } else {
+        render();
     }
+});
+
+// Editor save
+document.getElementById("gm-edit-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!currentModalGame) return;
+    const f = ev.target;
+    const payload = {};
+    const map = {
+        title: "title",
+        release_year: "release_year",
+        cover_url: "cover_url",
+        igdb_id: "igdb_id",
+        player_count_min: "player_count_min",
+        player_count_max: "player_count_max",
+        genres: "genres",
+        tags: "tags",
+    };
+    for (const [name, key] of Object.entries(map)) {
+        const v = f.elements[name].value.trim();
+        if (key === "igdb_id" && !v) continue;  // empty igdb means keep
+        if (v === "" && (key === "release_year" || key === "player_count_min" || key === "player_count_max")) continue;
+        payload[key] = v;
+    }
+    const r = await fetch(`/api/games/${currentModalGame.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+        alert("Save failed: HTTP " + r.status);
+        return;
+    }
+    await loadGames();
+    const updated = games.find((g) => g.id === currentModalGame.id);
+    if (updated) openGameModal(updated);
+});
+
+document.getElementById("gm-refetch").addEventListener("click", async () => {
+    if (!currentModalGame) return;
+    const r = await fetch(`/api/games/${currentModalGame.id}/refetch-igdb`, {
+        method: "POST",
+    });
+    if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        alert("Re-fetch failed: " + (j.detail || r.status));
+        return;
+    }
+    await loadGames();
+    const updated = games.find((g) => g.id === currentModalGame.id);
+    if (updated) openGameModal(updated);
 });
 
 async function ingest(source) {

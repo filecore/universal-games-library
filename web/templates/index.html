@@ -131,6 +131,45 @@
 
     <main id="games"></main>
 
+    <div id="game-modal" class="modal-overlay" hidden>
+        <div class="modal-card game-modal-card">
+            <button type="button" id="game-modal-close" class="close-x" aria-label="Close">&times;</button>
+            <div class="game-modal-body">
+                <div class="game-modal-cover-wrap">
+                    <div class="game-modal-cover" id="gm-cover"></div>
+                </div>
+                <div class="game-modal-info">
+                    <h2 id="gm-title"></h2>
+                    <div id="gm-meta" class="gm-meta"></div>
+                    <div id="gm-badges" class="gm-badges"></div>
+                    <div id="gm-genres" class="gm-genres"></div>
+                    <h3>Where you own it</h3>
+                    <ul id="gm-ownership" class="gm-ownership"></ul>
+                    <h3>Multiplayer</h3>
+                    <div id="gm-pills" class="mp-pills"></div>
+                    <div id="gm-actions" class="gm-actions"></div>
+                    <details id="gm-editor-wrap" hidden>
+                        <summary>Edit game</summary>
+                        <form id="gm-edit-form" class="gm-edit-form">
+                            <label>Title <input type="text" name="title"></label>
+                            <label>Release year <input type="number" name="release_year" min="1970" max="2099"></label>
+                            <label>Cover URL <input type="url" name="cover_url"></label>
+                            <label>IGDB ID <input type="number" name="igdb_id" min="0"></label>
+                            <label>Player count min <input type="number" name="player_count_min" min="1"></label>
+                            <label>Player count max <input type="number" name="player_count_max" min="1"></label>
+                            <label>Genres (comma-separated) <input type="text" name="genres"></label>
+                            <label>Tags (comma-separated) <input type="text" name="tags"></label>
+                            <div class="row">
+                                <button type="button" id="gm-refetch" class="ghost">Re-fetch from IGDB</button>
+                                <button type="submit">Save</button>
+                            </div>
+                        </form>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="login-modal" class="modal-overlay" hidden>
         <div class="modal-card">
             <h2>Sign in</h2>

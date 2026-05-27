@@ -237,23 +237,114 @@ async def ingest_manual(
 @app.patch("/api/games/{game_id}")
 def update_game(game_id: int, request: Request, payload: dict = Body(...)):
     require_user(request)
-    allowed = {
+    bool_fields = {
         "has_local_coop",
         "has_online_coop",
         "has_local_vs",
         "has_online_vs",
         "has_campaign",
     }
-    updates = {k: bool(payload[k]) for k in allowed if k in payload}
+    scalar_fields = {
+        "title",
+        "release_year",
+        "cover_url",
+        "igdb_id",
+        "player_count_min",
+        "player_count_max",
+    }
+    list_fields = {"genres", "tags"}
+    updates = {}
+    for k, v in payload.items():
+        if k in bool_fields:
+            updates[k] = bool(v)
+        elif k in scalar_fields:
+            if v == "" or v is None:
+                updates[k] = None
+            elif k in ("release_year", "igdb_id", "player_count_min", "player_count_max"):
+                try:
+                    updates[k] = int(v)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=400, detail=f"{k} must be int")
+            else:
+                updates[k] = str(v)
+        elif k in list_fields:
+            if isinstance(v, list):
+                updates[k] = [str(x).strip() for x in v if str(x).strip()]
+            elif isinstance(v, str):
+                updates[k] = [s.strip() for s in v.split(",") if s.strip()]
     if not updates:
         raise HTTPException(status_code=400, detail="no valid fields")
     with get_session() as s:
         game = s.get(Game, game_id)
         if not game:
             raise HTTPException(status_code=404, detail="not found")
+        # Title change implies title_normalised change
+        if "title" in updates and updates["title"]:
+            from igdb import normalise_title
+            game.title_normalised = normalise_title(updates["title"])
         for k, v in updates.items():
             setattr(game, k, v)
     return {"ok": True, "updated": list(updates.keys())}
+
+
+@app.post("/api/games/{game_id}/refetch-igdb")
+def refetch_igdb(game_id: int, request: Request):
+    """Re-pull the IGDB record for the game's stored igdb_id and apply
+    every derived field (cover, year, genres, tags, multiplayer flags).
+    Keeps the canonical title as-is unless title field is blank."""
+    require_user(request)
+    import httpx
+    from igdb import _get_token, IGDB_CLIENT_ID, to_game_fields, normalise_title
+
+    with get_session() as s:
+        game = s.get(Game, game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="not found")
+        if not game.igdb_id:
+            raise HTTPException(status_code=400, detail="no igdb_id set")
+        igdb_id = game.igdb_id
+
+    headers = {
+        "Client-ID": IGDB_CLIENT_ID,
+        "Authorization": f"Bearer {_get_token()}",
+        "Content-Type": "text/plain",
+        "Accept": "application/json",
+    }
+    body = (
+        "fields name,first_release_date,multiplayer_modes.*,game_modes.name,"
+        "genres.name,themes.name,keywords.name,cover.image_id,player_perspectives.name,"
+        f"platforms.name; where id = {igdb_id};"
+    )
+    r = httpx.post(
+        "https://api.igdb.com/v4/games", headers=headers, content=body, timeout=15
+    )
+    if r.status_code != 200 or not r.json():
+        raise HTTPException(status_code=502, detail=f"IGDB lookup failed: {r.status_code}")
+    fields = to_game_fields(r.json()[0])
+
+    with get_session() as s:
+        game = s.get(Game, game_id)
+        game.title = fields["title"]
+        game.title_normalised = normalise_title(fields["title"])
+        if fields.get("cover_url"):
+            game.cover_url = fields["cover_url"]
+        if fields.get("release_year"):
+            game.release_year = fields["release_year"]
+        if fields.get("player_count_max") and fields["player_count_max"] > 1:
+            game.player_count_min = fields.get("player_count_min", 1)
+            game.player_count_max = fields["player_count_max"]
+        for flag in (
+            "has_local_coop",
+            "has_online_coop",
+            "has_local_vs",
+            "has_online_vs",
+            "has_campaign",
+        ):
+            setattr(game, flag, fields.get(flag, False))
+        if fields.get("genres"):
+            game.genres = fields["genres"]
+
+    return {"ok": True, "title": fields["title"]}
 
 
 @app.get("/api/runs")
