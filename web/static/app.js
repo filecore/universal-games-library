@@ -171,6 +171,20 @@ function openGameModal(game) {
         );
     }
 
+    // Reset raw-data viewer when switching games so it re-fetches on next open
+    const rawWrap = document.getElementById("gm-raw-wrap");
+    const rawPre = document.getElementById("gm-raw");
+    if (rawWrap) {
+        const wasOpen = rawWrap.open;
+        rawWrap.open = false;
+        rawPre.textContent = "";
+        if (wasOpen) {
+            // user had it open on the previous game; auto-reopen so they get
+            // the new game's data without an extra click
+            requestAnimationFrame(() => { rawWrap.open = true; });
+        }
+    }
+
     // Editor (logged-in only)
     const editor = document.getElementById("gm-editor-wrap");
     if (currentUser) {
