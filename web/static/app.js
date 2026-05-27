@@ -57,6 +57,7 @@ function openLoginModal() {
     const modal = document.getElementById("login-modal");
     modal.classList.add("open");
     modal.hidden = false;
+    document.body.classList.add("modal-open");
     document.getElementById("login-error").hidden = true;
     document.getElementById("login-username").value = "";
     document.getElementById("login-password").value = "";
@@ -67,6 +68,9 @@ function closeLoginModal() {
     const modal = document.getElementById("login-modal");
     modal.classList.remove("open");
     modal.hidden = true;
+    if (document.getElementById("game-modal").hidden) {
+        document.body.classList.remove("modal-open");
+    }
 }
 
 function sourceUrl(store, externalId, title) {
@@ -187,6 +191,7 @@ function openGameModal(game) {
 
     m.classList.add("open");
     m.hidden = false;
+    document.body.classList.add("modal-open");
 }
 
 function closeGameModal() {
@@ -194,6 +199,9 @@ function closeGameModal() {
     m.classList.remove("open");
     m.hidden = true;
     currentModalGame = null;
+    if (document.getElementById("login-modal").hidden) {
+        document.body.classList.remove("modal-open");
+    }
 }
 
 function renderPillsInner(g) {
