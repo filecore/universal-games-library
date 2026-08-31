@@ -1,5 +1,9 @@
 services:
   db:
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID, DAC_OVERRIDE, FOWNER, KILL]
+    security_opt:
+      - no-new-privileges:true
     image: postgres:16-alpine
     container_name: games-db
     restart: unless-stopped
@@ -18,6 +22,10 @@ services:
       - default
 
   app:
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID, DAC_OVERRIDE, FOWNER, KILL]
+    security_opt:
+      - no-new-privileges:true
     build: ./app
     container_name: games-app
     restart: unless-stopped
@@ -29,6 +37,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./web:/app/web
+      - ./scripts:/app/scripts:ro
     depends_on:
       db:
         condition: service_healthy
