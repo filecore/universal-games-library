@@ -955,6 +955,51 @@ document.getElementById("copy-snippet").addEventListener("click", async () => {
     }
 });
 
+function buildCurlSnippet(distroKey) {
+    const file = "prepare-gaming-pc-" + distroKey + ".sh";
+    return 'curl -c cookies.txt -X POST -d "username=jason&password=YOUR_PASSWORD" https://games.togneri.net/api/login && '
+        + 'curl -b cookies.txt -o ' + file + ' https://games.togneri.net/api/downloads/' + distroKey;
+}
+
+function buildWgetSnippet(distroKey) {
+    const file = "prepare-gaming-pc-" + distroKey + ".sh";
+    return 'wget --save-cookies cookies.txt --keep-session-cookies -O /dev/null --post-data="username=jason&password=YOUR_PASSWORD" https://games.togneri.net/api/login && '
+        + 'wget --load-cookies cookies.txt -O ' + file + ' https://games.togneri.net/api/downloads/' + distroKey;
+}
+
+function promptDistroKey() {
+    const answer = window.prompt('Which script - type "debian" (Debian/Ubuntu/Mint) or "fedora" (Fedora/Nobara):', "debian");
+    if (answer === null) return null;
+    return answer.trim().toLowerCase() === "fedora" ? "fedora" : "debian";
+}
+
+function wireDistroCopyButton(buttonId, textareaId, builder, label) {
+    const btn = document.getElementById(buttonId);
+    const ta = document.getElementById(textareaId);
+    if (!btn || !ta) return;
+    btn.addEventListener("click", async () => {
+        const distroKey = promptDistroKey();
+        if (distroKey === null) return;
+        const text = builder(distroKey);
+        ta.value = text;
+        ta.select();
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            document.execCommand("copy");
+        }
+        const s = document.getElementById("ingest-status");
+        if (s) s.textContent = label + " for " + distroKey + " copied as a single line.";
+    });
+}
+wireDistroCopyButton("copy-snippet-curl", "snippet-curl", buildCurlSnippet, "curl snippet");
+wireDistroCopyButton("copy-snippet-wget", "snippet-wget", buildWgetSnippet, "wget snippet");
+
+const initCurlTa = document.getElementById("snippet-curl");
+if (initCurlTa) initCurlTa.value = buildCurlSnippet("debian");
+const initWgetTa = document.getElementById("snippet-wget");
+if (initWgetTa) initWgetTa.value = buildWgetSnippet("debian");
+
 loadSnippet();
 
 (async () => {

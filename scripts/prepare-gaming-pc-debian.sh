@@ -12,20 +12,27 @@ set -uo pipefail
 LOGFILE="$HOME/prepare-gaming-pc.log"
 : > "$LOGFILE"
 
+STEP=0
 COMPLETED=()
+COMPLETED_NUM=()
 FAILED=()
+FAILED_NUM=()
 FAILED_RESOLUTIONS=()
 MANUAL=()
 
 ok() {
+    STEP=$((STEP + 1))
     COMPLETED+=("$1")
-    echo "[OK]     $1"
+    COMPLETED_NUM+=("$STEP")
+    printf '%2d. [OK]     %s\n' "$STEP" "$1"
 }
 
 fail() {
+    STEP=$((STEP + 1))
     FAILED+=("$1")
+    FAILED_NUM+=("$STEP")
     FAILED_RESOLUTIONS+=("$2")
-    echo "[FAILED] $1"
+    printf '%2d. [FAILED] %s\n' "$STEP" "$1"
 }
 
 manual() {
@@ -125,15 +132,15 @@ freshen_mesa_ubuntu() {
         return
     fi
     if ! command -v add-apt-repository >/dev/null 2>&1; then
-        fail "Add kisak-mesa PPA for newer Mesa" "Install software-properties-common, then run: sudo add-apt-repository ppa:kisak-mesalib/kisak-mesa && sudo apt-get update && sudo apt-get install --only-upgrade libgl1-mesa-dri mesa-vulkan-drivers mesa-utils"
+        fail "Add kisak-mesa PPA for newer Mesa" "Install software-properties-common, then run: sudo add-apt-repository ppa:kisak/kisak-mesa && sudo apt-get update && sudo apt-get install --only-upgrade libgl1-mesa-dri mesa-vulkan-drivers mesa-utils"
         return
     fi
-    if $SUDO add-apt-repository -y ppa:kisak-mesalib/kisak-mesa >>"$LOGFILE" 2>&1 \
+    if $SUDO add-apt-repository -y ppa:kisak/kisak-mesa >>"$LOGFILE" 2>&1 \
         && $SUDO apt-get update -y >>"$LOGFILE" 2>&1 \
         && $SUDO apt-get install -y --only-upgrade libgl1-mesa-dri mesa-vulkan-drivers mesa-utils >>"$LOGFILE" 2>&1; then
         ok "Add kisak-mesa PPA and upgrade to its newer Mesa build"
     else
-        fail "Add kisak-mesa PPA for newer Mesa" "Run: sudo add-apt-repository ppa:kisak-mesalib/kisak-mesa && sudo apt-get update && sudo apt-get install --only-upgrade libgl1-mesa-dri mesa-vulkan-drivers mesa-utils"
+        fail "Add kisak-mesa PPA for newer Mesa" "The PPA only publishes builds for recent Ubuntu releases (currently 24.04, 25.10, 26.04 - not 22.04 or older), so this can fail simply because your release isn't supported yet. Check https://launchpad.net/~kisak/+archive/ubuntu/kisak-mesa for supported releases, or run manually: sudo add-apt-repository ppa:kisak/kisak-mesa && sudo apt-get update && sudo apt-get install --only-upgrade libgl1-mesa-dri mesa-vulkan-drivers mesa-utils"
     fi
 }
 
@@ -228,6 +235,19 @@ install_protonup_qt() {
     fi
 }
 
+install_protonplus() {
+    if flatpak list 2>/dev/null | grep -q com.vysp3r.ProtonPlus; then
+        ok "ProtonPlus (already installed)"
+        return
+    fi
+
+    if ensure_flatpak && $SUDO flatpak install -y flathub com.vysp3r.ProtonPlus >>"$LOGFILE" 2>&1; then
+        ok "Install ProtonPlus (second GUI fallback for GE-Proton/Wine-GE builds - some users have better luck with this one than ProtonUp-Qt)"
+    else
+        fail "Install ProtonPlus" "Run: flatpak install flathub com.vysp3r.ProtonPlus"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # GE-Proton (headless, via protonup-ng)
 # ---------------------------------------------------------------------------
@@ -246,23 +266,36 @@ ensure_protonup_cli() {
     return 1
 }
 
-install_geproton_for() {
-    local target="$1"
-    if protonup -d -t "$target" >>"$LOGFILE" 2>&1; then
-        ok "Install latest GE-Proton for $target"
+# protonup-ng's -d flag takes an INSTALL DIRECTORY, and -t takes a specific
+# version TAG (e.g. "6.5-GE-2") - there is no "target application" flag.
+# Bare "protonup -d <dir> -y" fetches and installs the latest release into
+# that directory non-interactively, so each launcher just needs its own
+# correct directory passed in.
+install_geproton_into() {
+    local label="$1" dir="$2"
+    mkdir -p "$dir"
+    protonup -d "$dir" -y >>"$LOGFILE" 2>&1
+    # Don't trust protonup's exit code alone - it has been observed to
+    # report success without actually leaving a usable build behind, so
+    # verify a real subdirectory landed in $dir before calling this OK.
+    if [ -n "$(find "$dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1)" ]; then
+        ok "Install latest GE-Proton for $label"
+        return 0
     else
-        fail "Install latest GE-Proton for $target" "Open ProtonUp-Qt (already installed) and install the latest GE-Proton build for $target from its GUI. This usually just needs $target to have been run at least once first."
+        fail "Install latest GE-Proton for $label" "protonup-ng did not leave a usable build in \"$dir\" (see $LOGFILE for its output). Install it manually via ProtonUp-Qt or ProtonPlus instead (both already installed) - open either one's GUI and install the latest GE-Proton build for $label."
+        return 1
     fi
 }
+
+GEPROTON_STEAM_OK=false
 
 setup_geproton() {
     if ensure_protonup_cli; then
         ok "Install protonup-ng (headless GE-Proton manager)"
-        install_geproton_for "Steam"
-        install_geproton_for "Lutris"
-        install_geproton_for "Heroic Games Launcher"
+        install_geproton_into "Steam" "$HOME/.steam/root/compatibilitytools.d" && GEPROTON_STEAM_OK=true
+        install_geproton_into "Lutris" "$HOME/.local/share/lutris/runners/wine"
     else
-        fail "Install protonup-ng (headless GE-Proton manager)" "Use ProtonUp-Qt's GUI instead (already installed) to install the latest GE-Proton for Steam, Lutris, and Heroic manually."
+        fail "Install protonup-ng (headless GE-Proton manager)" "Use ProtonUp-Qt's or ProtonPlus's GUI instead (both already installed) to install the latest GE-Proton for Steam and Lutris manually."
     fi
 }
 
@@ -274,7 +307,7 @@ install_battlenet() {
     local desc="Install Battle.net (via Lutris)"
 
     if [ "$HAS_DISPLAY" != true ]; then
-        manual "Battle.net: no graphical session was detected while this script ran. After logging into your desktop, open Lutris, search for 'Battle.net' in the installer library, click Install, and log in with your Blizzard account (the same StarCraft II workaround you've used before)."
+        manual "Battle.net: no graphical session was detected while this script ran. After logging into your desktop, open Lutris, search for 'Battle.net' in the installer library, click Install, and log in with your Blizzard account."
         return
     fi
 
@@ -292,7 +325,7 @@ install_battlenet() {
         ok "Trigger Battle.net install via Lutris"
         manual "Battle.net: finish the Lutris install (it downloads the Blizzard client in the background) and log in with your Blizzard account."
     else
-        fail "$desc" "Open Lutris, search for 'Battle.net' in the installer library, and click Install. Log in with your Blizzard account when prompted (the same StarCraft II workaround you've used before)."
+        fail "$desc" "Open Lutris, search for 'Battle.net' in the installer library, and click Install. Log in with your Blizzard account when prompted."
     fi
 }
 
@@ -301,25 +334,17 @@ install_battlenet() {
 # ---------------------------------------------------------------------------
 
 check_gpu() {
-    detect_gpu_vendor
-
+    # Only add a manual note here when there's something genuinely actionable
+    # left to do - the AMD/Intel-on-Ubuntu and firmware/microcode-on-Debian
+    # results already show up in the Completed/Failed lists above, so
+    # repeating "no further action needed" here would just be noise.
     if [ "$GPU_VENDOR" = "nvidia" ]; then
         manual "NVIDIA GPU detected: install the proprietary NVIDIA driver for full Vulkan/Proton performance. Ubuntu: run 'ubuntu-drivers autoinstall' or use Software & Updates > Additional Drivers. Mint: use the Driver Manager. Debian: enable contrib+non-free and install nvidia-driver. Reboot afterwards."
-    elif [ "$GPU_VENDOR" = "amd" ]; then
-        if [ "$IS_UBUNTU_BASED" = true ]; then
-            manual "AMD GPU detected: this script already added the kisak-mesa PPA for a newer Mesa/RADV build - no further action needed."
-        else
-            manual "AMD GPU detected: this script already installed firmware-amd-graphics and amd64-microcode. If you still hit graphics glitches or missing features, Debian's stable kernel can lag behind newer AMD GPUs - consider a backports kernel: enable the '${DEBIAN_CODENAME:-<your-release-codename>}-backports' component in your APT sources, run 'sudo apt-get update', then 'sudo apt-get install -t ${DEBIAN_CODENAME:-<your-release-codename>}-backports linux-image-amd64'."
-        fi
-    elif [ "$GPU_VENDOR" = "intel" ]; then
-        if [ "$IS_UBUNTU_BASED" = true ]; then
-            manual "Intel GPU detected: this script already added the kisak-mesa PPA for a newer Mesa/ANV build - no further action needed."
-        else
-            manual "Intel GPU detected: this script already installed intel-microcode. Mesa's ANV Vulkan driver (installed by this script) covers the rest - make sure your kernel is reasonably recent."
-        fi
+    elif [ "$GPU_VENDOR" = "amd" ] && [ "$IS_UBUNTU_BASED" != true ]; then
+        manual "AMD GPU: if you still hit graphics glitches or missing features after this run, Debian's stable kernel can lag behind newer AMD GPUs even with firmware installed - consider a backports kernel: enable the '${DEBIAN_CODENAME:-<your-release-codename>}-backports' component in your APT sources, run 'sudo apt-get update', then 'sudo apt-get install -t ${DEBIAN_CODENAME:-<your-release-codename>}-backports linux-image-amd64'."
     fi
 
-    ok "Detect GPU vendor for driver guidance"
+    ok "Detect GPU vendor for driver guidance (found: ${GPU_VENDOR:-none detected})"
 }
 
 # ---------------------------------------------------------------------------
@@ -327,9 +352,15 @@ check_gpu() {
 # ---------------------------------------------------------------------------
 
 add_static_manual_notes() {
-    manual "Steam: launch it once, log in, then go to Settings > Compatibility, enable 'Enable Steam Play for all other titles', and select the GE-Proton build installed by this script as the default."
-    manual "Heroic: log in with your Epic Games account (Heroic > Epic Games Store > Login) to sync your Epic library."
-    manual "Ubisoft Connect (Far Cry titles): log in with your Ubisoft account the first time you launch one via Steam+Proton. If login fails (known Ubisoft Connect client bug under stock Proton since April 2026), use the GE-Proton build installed above, or sideload Ubisoft Connect inside Heroic as a fallback."
+    if [ "$GEPROTON_STEAM_OK" = true ]; then
+        manual "Steam: launch it once, log in, then go to Settings > Compatibility, enable 'Enable Steam Play for all other titles', and select the GE-Proton build installed by this script as the default."
+    else
+        manual "Steam: launch it once, log in, then go to Settings > Compatibility, enable 'Enable Steam Play for all other titles'. GE-Proton wasn't installed automatically (see the failed step above) - install a build via ProtonUp-Qt or ProtonPlus first (both already installed), then select it as default."
+    fi
+
+    manual "Heroic: log in with your Epic Games account (Heroic > Epic Games Store > Login) to sync your Epic library. Heroic manages its own GE-Proton/Wine-GE builds under Settings > Wine Manager - install a build there directly rather than relying on Steam's or Lutris's copy."
+
+    manual "Ubisoft Connect (Far Cry titles): log in with your Ubisoft account the first time you launch one. 'An error occurred while trying to send your request' is a generic Ubisoft client-side error (not specific to Linux) with no single fix - things worth trying in order: (1) switch the Wine/Proton-GE version it runs under (Lutris: right-click the game > Configure > Runner options; Steam: pick a different GE-Proton build under that game's Properties > Compatibility) - see community fixes at https://github.com/lutris/lutris/issues/4836 and https://forums.lutris.net/t/ubisoft-connect-not-working-solved/17438, (2) check your system clock/timezone is correct, since a wrong clock breaks TLS certificate validation, (3) as a fallback, sideload Ubisoft Connect inside Heroic instead (a separate, isolated Wine build) - download the installer from https://ubisoftconnect.com then follow the exact steps at https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki/How-to-install-Ubisoft-Connect-on-Linux-and-Mac."
 }
 
 # ---------------------------------------------------------------------------
@@ -337,13 +368,15 @@ add_static_manual_notes() {
 # ---------------------------------------------------------------------------
 
 print_report() {
+    local i
+
     echo
     echo "==================== Completed steps ===================="
     if [ ${#COMPLETED[@]} -eq 0 ]; then
         echo "(none)"
     else
-        for item in "${COMPLETED[@]}"; do
-            echo "- $item"
+        for i in "${!COMPLETED[@]}"; do
+            echo "${COMPLETED_NUM[$i]}. ${COMPLETED[$i]}"
         done
     fi
 
@@ -352,8 +385,8 @@ print_report() {
     if [ ${#FAILED[@]} -eq 0 ]; then
         echo "(none)"
     else
-        for item in "${FAILED[@]}"; do
-            echo "- $item"
+        for i in "${!FAILED[@]}"; do
+            echo "${FAILED_NUM[$i]}. ${FAILED[$i]}"
         done
     fi
 
@@ -362,12 +395,14 @@ print_report() {
     if [ ${#MANUAL[@]} -eq 0 ] && [ ${#FAILED[@]} -eq 0 ]; then
         echo "(none)"
     else
+        local n=0
         for item in "${MANUAL[@]}"; do
-            echo "- $item"
+            n=$((n + 1))
+            echo "$n. $item"
         done
-        local i
         for i in "${!FAILED[@]}"; do
-            echo "- Resolve '${FAILED[$i]}': ${FAILED_RESOLUTIONS[$i]}"
+            n=$((n + 1))
+            echo "$n. Resolve step ${FAILED_NUM[$i]} (${FAILED[$i]}): ${FAILED_RESOLUTIONS[$i]}"
         done
     fi
 
@@ -403,6 +438,7 @@ main() {
     install_lutris
     install_heroic
     install_protonup_qt
+    install_protonplus
     setup_geproton
     freshen_mesa_ubuntu
     install_battlenet

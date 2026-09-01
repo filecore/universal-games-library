@@ -142,6 +142,15 @@
                 <li><a href="/api/downloads/debian" download="prepare-gaming-pc-debian.sh">Download setup script (Debian / Ubuntu / Mint)</a></li>
                 <li><a href="/api/downloads/fedora" download="prepare-gaming-pc-fedora.sh">Download setup script (Fedora / Nobara)</a></li>
             </ul>
+
+            <details>
+                <summary>Fetch via curl/wget (no browser)</summary>
+                <p class="hint">Logs in with the same account as this page, then downloads the script - both steps chained into one line so it pastes and runs as a single command. Clicking Copy will ask which script (Debian or Fedora) to build it for. Replace YOUR_PASSWORD before running.</p>
+                <button type="button" id="copy-snippet-curl">Copy curl snippet</button>
+                <textarea id="snippet-curl" readonly rows="3" spellcheck="false"></textarea>
+                <button type="button" id="copy-snippet-wget">Copy wget snippet</button>
+                <textarea id="snippet-wget" readonly rows="3" spellcheck="false"></textarea>
+            </details>
         </section>
     </aside>
 
