@@ -50,6 +50,33 @@ precheck_distro() {
     fi
 }
 
+IS_UBUNTU_BASED=false
+DEBIAN_CODENAME=""
+
+detect_distro_flavor() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        DEBIAN_CODENAME="${VERSION_CODENAME:-}"
+        if [ "${ID:-}" = "ubuntu" ] || [ "${ID:-}" = "linuxmint" ] || [[ "${ID_LIKE:-}" == *ubuntu* ]]; then
+            IS_UBUNTU_BASED=true
+        fi
+    fi
+}
+
+GPU_VENDOR=""
+
+detect_gpu_vendor() {
+    local gpu
+    gpu=$(lspci 2>/dev/null | grep -Ei 'vga|3d controller' || true)
+    if echo "$gpu" | grep -qi nvidia; then
+        GPU_VENDOR="nvidia"
+    elif echo "$gpu" | grep -qi amd; then
+        GPU_VENDOR="amd"
+    elif echo "$gpu" | grep -qi intel; then
+        GPU_VENDOR="intel"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # Core OS-level dependencies
 # ---------------------------------------------------------------------------
@@ -84,6 +111,53 @@ ensure_flatpak() {
         $SUDO apt-get install -y flatpak >>"$LOGFILE" 2>&1 || return 1
     fi
     $SUDO flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo >>"$LOGFILE" 2>&1
+}
+
+# Ubuntu/Mint only: the kisak-mesa PPA tracks upstream Mesa releases much
+# faster than the distro repos, which matters for RADV/ANV (AMD/Intel)
+# Vulkan performance and bug fixes. Not applicable to NVIDIA (proprietary
+# driver, not Mesa) or to plain Debian (no PPA support).
+freshen_mesa_ubuntu() {
+    if [ "$IS_UBUNTU_BASED" != true ]; then
+        return
+    fi
+    if [ "$GPU_VENDOR" != "amd" ] && [ "$GPU_VENDOR" != "intel" ]; then
+        return
+    fi
+    if ! command -v add-apt-repository >/dev/null 2>&1; then
+        fail "Add kisak-mesa PPA for newer Mesa" "Install software-properties-common, then run: sudo add-apt-repository ppa:kisak-mesalib/kisak-mesa && sudo apt-get update && sudo apt-get install --only-upgrade libgl1-mesa-dri mesa-vulkan-drivers mesa-utils"
+        return
+    fi
+    if $SUDO add-apt-repository -y ppa:kisak-mesalib/kisak-mesa >>"$LOGFILE" 2>&1 \
+        && $SUDO apt-get update -y >>"$LOGFILE" 2>&1 \
+        && $SUDO apt-get install -y --only-upgrade libgl1-mesa-dri mesa-vulkan-drivers mesa-utils >>"$LOGFILE" 2>&1; then
+        ok "Add kisak-mesa PPA and upgrade to its newer Mesa build"
+    else
+        fail "Add kisak-mesa PPA for newer Mesa" "Run: sudo add-apt-repository ppa:kisak-mesalib/kisak-mesa && sudo apt-get update && sudo apt-get install --only-upgrade libgl1-mesa-dri mesa-vulkan-drivers mesa-utils"
+    fi
+}
+
+# Plain Debian only: Ubuntu/Mint already pull vendor firmware and CPU
+# microcode from their default repos, but Debian splits proprietary
+# firmware into the non-free-firmware component, which may not be enabled.
+install_firmware_microcode_debian() {
+    if [ "$IS_UBUNTU_BASED" != false ]; then
+        return
+    fi
+    local pkgs=()
+    if [ "$GPU_VENDOR" = "amd" ]; then
+        pkgs=(firmware-amd-graphics amd64-microcode)
+    elif [ "$GPU_VENDOR" = "intel" ]; then
+        pkgs=(intel-microcode)
+    else
+        return
+    fi
+    if $SUDO apt-get install -y "${pkgs[@]}" >>"$LOGFILE" 2>&1; then
+        ok "Install GPU firmware / CPU microcode (${pkgs[*]})"
+    else
+        local codename_hint="${DEBIAN_CODENAME:-<your-release-codename>}"
+        fail "Install GPU firmware / CPU microcode (${pkgs[*]})" "Enable the 'non-free-firmware' component for '$codename_hint' in your APT sources (the Debian lines in /etc/apt/sources.list, or the deb822 file under /etc/apt/sources.list.d/), run 'sudo apt-get update', then 'sudo apt-get install ${pkgs[*]}'."
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -227,15 +301,22 @@ install_battlenet() {
 # ---------------------------------------------------------------------------
 
 check_gpu() {
-    local gpu
-    gpu=$(lspci 2>/dev/null | grep -Ei 'vga|3d controller' || true)
+    detect_gpu_vendor
 
-    if echo "$gpu" | grep -qi nvidia; then
-        manual "NVIDIA GPU detected: install the proprietary NVIDIA driver for full Vulkan/Proton performance. Ubuntu: run 'ubuntu-drivers autoinstall' or use Software & Updates > Additional Drivers. Mint: use the Driver Manager. Reboot afterwards."
-    elif echo "$gpu" | grep -qi amd; then
-        manual "AMD GPU detected: Mesa's RADV Vulkan driver (installed by this script) is the recommended choice for gaming - no further action needed."
-    elif echo "$gpu" | grep -qi intel; then
-        manual "Intel GPU detected: Mesa's ANV Vulkan driver (installed by this script) covers this - make sure your kernel is reasonably recent."
+    if [ "$GPU_VENDOR" = "nvidia" ]; then
+        manual "NVIDIA GPU detected: install the proprietary NVIDIA driver for full Vulkan/Proton performance. Ubuntu: run 'ubuntu-drivers autoinstall' or use Software & Updates > Additional Drivers. Mint: use the Driver Manager. Debian: enable contrib+non-free and install nvidia-driver. Reboot afterwards."
+    elif [ "$GPU_VENDOR" = "amd" ]; then
+        if [ "$IS_UBUNTU_BASED" = true ]; then
+            manual "AMD GPU detected: this script already added the kisak-mesa PPA for a newer Mesa/RADV build - no further action needed."
+        else
+            manual "AMD GPU detected: this script already installed firmware-amd-graphics and amd64-microcode. If you still hit graphics glitches or missing features, Debian's stable kernel can lag behind newer AMD GPUs - consider a backports kernel: enable the '${DEBIAN_CODENAME:-<your-release-codename>}-backports' component in your APT sources, run 'sudo apt-get update', then 'sudo apt-get install -t ${DEBIAN_CODENAME:-<your-release-codename>}-backports linux-image-amd64'."
+        fi
+    elif [ "$GPU_VENDOR" = "intel" ]; then
+        if [ "$IS_UBUNTU_BASED" = true ]; then
+            manual "Intel GPU detected: this script already added the kisak-mesa PPA for a newer Mesa/ANV build - no further action needed."
+        else
+            manual "Intel GPU detected: this script already installed intel-microcode. Mesa's ANV Vulkan driver (installed by this script) covers the rest - make sure your kernel is reasonably recent."
+        fi
     fi
 
     ok "Detect GPU vendor for driver guidance"
@@ -300,6 +381,8 @@ print_report() {
 
 main() {
     precheck_distro
+    detect_distro_flavor
+    detect_gpu_vendor
 
     echo "Updating package index..."
     if $SUDO apt-get update -y >>"$LOGFILE" 2>&1; then
@@ -315,11 +398,13 @@ main() {
     fi
 
     install_core_deps
+    install_firmware_microcode_debian
     install_steam
     install_lutris
     install_heroic
     install_protonup_qt
     setup_geproton
+    freshen_mesa_ubuntu
     install_battlenet
     check_gpu
     add_static_manual_notes

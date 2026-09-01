@@ -26,6 +26,10 @@ if not SESSION_SECRET:
 
 BUILD_ID = str(int(time.time()))
 SCRIPTS_DIR = Path("scripts")
+DOWNLOAD_SCRIPTS = {
+    "debian": "prepare-gaming-pc-debian.sh",
+    "fedora": "prepare-gaming-pc-fedora.sh",
+}
 
 
 @asynccontextmanager
@@ -73,16 +77,19 @@ def me(request: Request):
     return {"user": request.session.get("user")}
 
 
-@app.get("/api/downloads/prepare-gaming-pc.sh")
-def download_prepare_gaming_pc(request: Request):
+@app.get("/api/downloads/{key}")
+def download_prepare_gaming_pc(key: str, request: Request):
     require_user(request)
-    path = SCRIPTS_DIR / "prepare-gaming-pc.sh"
+    filename = DOWNLOAD_SCRIPTS.get(key)
+    if not filename:
+        raise HTTPException(status_code=404, detail="not found")
+    path = SCRIPTS_DIR / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="not found")
     return PlainTextResponse(
         path.read_text(),
         media_type="text/x-sh",
-        headers={"Content-Disposition": "attachment; filename=prepare-gaming-pc.sh"},
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
