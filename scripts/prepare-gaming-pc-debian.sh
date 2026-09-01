@@ -299,6 +299,41 @@ setup_geproton() {
     fi
 }
 
+# Lutris shells out to winetricks (an old bash script) with the WINE path,
+# and a space in a runner directory's name breaks that unquoted handoff -
+# ProtonPlus in particular installs a build literally named "Proton-GE
+# Latest" under runners/wine, which then fails with "WINE is ... which is
+# neither on the path nor an executable file" even though the file exists.
+# Rename any offending runner directories (from any tool, not just ours) to
+# a safe equivalent, regardless of whether GE-Proton setup above succeeded.
+sanitize_lutris_runner_names() {
+    local base dir name newname renamed=()
+    for base in "$HOME/.local/share/lutris/runners/wine" "$HOME/.local/share/lutris/runners/proton"; do
+        [ -d "$base" ] || continue
+        while IFS= read -r -d '' dir; do
+            name="$(basename "$dir")"
+            case "$name" in
+                *' '*)
+                    newname="${name// /-}"
+                    if [ -e "$base/$newname" ]; then
+                        continue
+                    fi
+                    if mv "$dir" "$base/$newname" >>"$LOGFILE" 2>&1; then
+                        renamed+=("$name -> $newname")
+                    fi
+                    ;;
+            esac
+        done < <(find "$base" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+    done
+
+    if [ ${#renamed[@]} -eq 0 ]; then
+        ok "Check Lutris runner directory names for spaces (winetricks compatibility)"
+    else
+        ok "Renamed Lutris runner director$([ ${#renamed[@]} -eq 1 ] && echo y || echo ies) to remove spaces (winetricks compatibility): ${renamed[*]}"
+        manual "Lutris: re-select the renamed Wine/Proton version in any affected game's Configure > Runner options - Lutris may still show the old name with the space cached until you do. Renamed: ${renamed[*]}"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # Battle.net (best-effort, via Lutris)
 # ---------------------------------------------------------------------------
@@ -440,6 +475,7 @@ main() {
     install_protonup_qt
     install_protonplus
     setup_geproton
+    sanitize_lutris_runner_names
     freshen_mesa_ubuntu
     install_battlenet
     check_gpu
